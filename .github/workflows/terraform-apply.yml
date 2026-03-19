@@ -1,4 +1,4 @@
-name: Terraform Apply — CA Group
+name: Terraform Apply - CA Group
 
 on:
   push:

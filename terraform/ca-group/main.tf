@@ -1,5 +1,5 @@
 # ============================================================
-# CA Group — Conditional Access Protection Group
+# CA Group - Conditional Access Protection Group
 # ============================================================
 #
 # TEST:  Terraform creates the group.

@@ -27,7 +27,7 @@
     Path to the terraform.tfstate file for the ca-group module.
 
 .PARAMETER MembersVarsPath
-    Path to members.auto.tfvars — modified by remediation PRs.
+    Path to members.auto.tfvars - modified by remediation PRs.
 
 .PARAMETER BulkDriftThreshold
     Number of drifted users that triggers investigation mode. Default: 5.
@@ -48,7 +48,7 @@
     Optional path to write the results as a JSON file.
 
 .EXAMPLE
-    # Dry run — report only
+    # Dry run - report only
     .\Invoke-ComplianceScanner.ps1 `
         -SubscriptionIds "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
         -CAGroupId "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" `
@@ -106,7 +106,7 @@ function Get-HSRBACUsers {
 
     foreach ($subId in $SubscriptionIds) {
         # Set context per subscription so Get-AzRoleAssignment returns ALL assignments
-        # at every scope level — subscription, resource group, and resource.
+        # at every scope level - subscription, resource group, and resource.
         # Using -Scope "/subscriptions/$subId" would only return subscription-level assignments.
         Set-AzContext -SubscriptionId $subId -ErrorAction Stop | Out-Null
         Write-Verbose "  Scanning subscription $subId..."
@@ -167,7 +167,7 @@ function Get-CAGroupLiveMembers {
 function Get-TerraformManagedMembers {
     param([string]$StatePath, [string]$VarsPath)
 
-    # Prefer tfstate (authoritative) — fall back to members.auto.tfvars (available in CI)
+    # Prefer tfstate (authoritative) - fall back to members.auto.tfvars (available in CI)
     if (Test-Path $StatePath) {
         $state = Get-Content $StatePath -Raw | ConvertFrom-Json
         $members = @(
@@ -182,7 +182,7 @@ function Get-TerraformManagedMembers {
     }
 
     if (Test-Path $VarsPath) {
-        Write-Verbose "Terraform state not found — falling back to $VarsPath"
+        Write-Verbose "Terraform state not found - falling back to $VarsPath"
         $content = Get-Content $VarsPath -Raw
         $members = [regex]::Matches($content, '"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"') |
             ForEach-Object { $_.Groups[1].Value }
@@ -190,7 +190,7 @@ function Get-TerraformManagedMembers {
         return [string[]]@($members)
     }
 
-    Write-Warning "Neither tfstate nor members.auto.tfvars found — treating TF state as empty."
+    Write-Warning "Neither tfstate nor members.auto.tfvars found - treating TF state as empty."
     return [string[]]@()
 }
 
@@ -244,7 +244,7 @@ function Invoke-ComplianceCheck {
         }
     }
 
-    # SC-02: User is in live CA group but NOT in TF state — manual addition
+    # SC-02: User is in live CA group but NOT in TF state - manual addition
     foreach ($userId in $LiveCAMembers) {
         if ($userId -notin $TFCAMembers) {
             $driftItems.Add([PSCustomObject]@{
@@ -252,7 +252,7 @@ function Invoke-ComplianceCheck {
                 Scenario    = "Scenario2"
                 RiskLevel   = "Low"
                 Remediation = "RaisePR"
-                Description = "User added to CA group manually — not reflected in Terraform state"
+                Description = "User added to CA group manually - not reflected in Terraform state"
             })
         }
     }
@@ -266,18 +266,18 @@ function Invoke-ComplianceCheck {
                     Scenario    = "Scenario5"
                     RiskLevel   = "VeryLow"
                     Remediation = "RemoveFromCAGroup"
-                    Description = "User has no HS RBAC roles — CA group membership no longer required"
+                    Description = "User has no HS RBAC roles - CA group membership no longer required"
                 })
             }
         }
     }
 
-    # SC-04: Bulk drift — switch to investigation mode, block auto-remediation
+    # SC-04: Bulk drift - switch to investigation mode, block auto-remediation
     $totalDrift = $findings.Count + $driftItems.Count
     $mode = if ($totalDrift -ge $BulkDriftThreshold) { "Investigation" } else { "Normal" }
 
     if ($mode -eq "Investigation") {
-        Write-Warning "Bulk drift threshold ($BulkDriftThreshold) exceeded ($totalDrift items). Entering Investigation mode — no auto-remediation."
+        Write-Warning "Bulk drift threshold ($BulkDriftThreshold) exceeded ($totalDrift items). Entering Investigation mode - no auto-remediation."
         $findings   | ForEach-Object { $_.Remediation = "ManualReview" }
         $driftItems | ForEach-Object { $_.Remediation = "ManualReview" }
     }
@@ -388,7 +388,7 @@ function Invoke-Remediation {
 
     if ($CheckResult.Mode -eq "Investigation") {
         Write-Host ""
-        Write-Host "  [!] Investigation mode — manual review required. No automated remediation." -ForegroundColor Magenta
+        Write-Host "  [!] Investigation mode - manual review required. No automated remediation." -ForegroundColor Magenta
         return
     }
 
@@ -424,14 +424,14 @@ function Invoke-Remediation {
                             -FileContent (Set-MembersInFile $varsContent $newMembers) `
                             -CommitMessage "remediation: add $displayName to CA group (SC-01)" `
                             -PRTitle "[SC-01] Add $displayName to CA group (auto-remediation)" `
-                            -PRBody "## Auto-Remediation — Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user had HS RBAC access but was not a member of the CA protection group. The user has been added to the CA group directly. This PR aligns Terraform state.`n`n**Risk Level:** Low`n**Automated action:** User added to CA group`n**Required action:** Approve this PR to align Terraform state"
+                            -PRBody "## Auto-Remediation - Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user had HS RBAC access but was not a member of the CA protection group. The user has been added to the CA group directly. This PR aligns Terraform state.`n`n**Risk Level:** Low`n**Automated action:** User added to CA group`n**Required action:** Approve this PR to align Terraform state"
                         Write-Host "  [SC-01] PR created: $url" -ForegroundColor Green
                     }
                 }
             }
 
             "Scenario3" {
-                Write-Host "  [SC-03] HIGH RISK: $userLabel removed from CA group with active RBAC — raising PR for review..." -ForegroundColor Red
+                Write-Host "  [SC-03] HIGH RISK: $userLabel removed from CA group with active RBAC - raising PR for review..." -ForegroundColor Red
                 if ($DryRun) {
                     Write-Host "  [SC-03] [DryRun] Would raise PR to re-add $userLabel to CA group." -ForegroundColor DarkGray
                 } elseif ($hasPRSupport) {
@@ -443,16 +443,16 @@ function Invoke-Remediation {
                         -FilePath "terraform/ca-group/members.auto.tfvars" `
                         -FileContent (Set-MembersInFile $varsContent $newMembers) `
                         -CommitMessage "remediation: review SC-03 for $displayName" `
-                        -PRTitle "[SC-03] ⚠ HIGH RISK — Review CA group removal for $displayName" `
-                        -PRBody "## ⚠ High Risk — Scenario 3`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user has been **removed from the CA protection group** but **still retains HS RBAC access**. This means the user can access HS Azure resources without Conditional Access enforcement.`n`n### Required Action`n- [ ] Review whether this user's RBAC access is still valid`n- [ ] If access is still valid: approve this PR to re-add to CA group`n- [ ] If access should no longer exist: remove RBAC assignments and close this PR`n`n**Risk Level:** High`n**Do not approve without reviewing the user's current access.**"
+                        -PRTitle "[SC-03] ⚠ HIGH RISK - Review CA group removal for $displayName" `
+                        -PRBody "## ⚠ High Risk - Scenario 3`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user has been **removed from the CA protection group** but **still retains HS RBAC access**. This means the user can access HS Azure resources without Conditional Access enforcement.`n`n### Required Action`n- [ ] Review whether this user's RBAC access is still valid`n- [ ] If access is still valid: approve this PR to re-add to CA group`n- [ ] If access should no longer exist: remove RBAC assignments and close this PR`n`n**Risk Level:** High`n**Do not approve without reviewing the user's current access.**"
                     Write-Host "  [SC-03] PR created: $url" -ForegroundColor Green
                 } else {
-                    Write-Warning "  [SC-03] No GitHub config — cannot raise PR. Manual intervention required for $userLabel."
+                    Write-Warning "  [SC-03] No GitHub config - cannot raise PR. Manual intervention required for $userLabel."
                 }
             }
 
             "Scenario5" {
-                Write-Host "  [SC-05] $userLabel has no HS roles — raising PR to remove from CA group..." -ForegroundColor Cyan
+                Write-Host "  [SC-05] $userLabel has no HS roles - raising PR to remove from CA group..." -ForegroundColor Cyan
                 if ($DryRun) {
                     Write-Host "  [SC-05] [DryRun] Would raise PR to remove $userLabel from CA group." -ForegroundColor DarkGray
                 } elseif ($hasPRSupport) {
@@ -465,7 +465,7 @@ function Invoke-Remediation {
                         -FileContent (Set-MembersInFile $varsContent $newMembers) `
                         -CommitMessage "remediation: remove $displayName from CA group (SC-05)" `
                         -PRTitle "[SC-05] Remove $displayName from CA group (no active roles)" `
-                        -PRBody "## Least Privilege Cleanup — Scenario 5`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n---`n`nThis user is a member of the CA protection group but holds **no HS RBAC roles**. CA group membership is no longer required under least privilege principles.`n`n**Risk Level:** Very Low`n**Action:** Approve to remove user from CA group"
+                        -PRBody "## Least Privilege Cleanup - Scenario 5`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n---`n`nThis user is a member of the CA protection group but holds **no HS RBAC roles**. CA group membership is no longer required under least privilege principles.`n`n**Risk Level:** Very Low`n**Action:** Approve to remove user from CA group"
                     Write-Host "  [SC-05] PR created: $url" -ForegroundColor Green
                 }
             }
@@ -482,7 +482,7 @@ function Invoke-Remediation {
         $roles       = if ($drift.RolesHeld)   { $drift.RolesHeld }   else { "Unknown" }
         $userLabel   = if ($upn) { "$displayName ($upn)" } else { $displayName }
 
-        Write-Host "  [SC-02] Manual CA group addition for $userLabel — raising PR to align Terraform state..." -ForegroundColor Yellow
+        Write-Host "  [SC-02] Manual CA group addition for $userLabel - raising PR to align Terraform state..." -ForegroundColor Yellow
         if ($DryRun) {
             Write-Host "  [SC-02] [DryRun] Would raise PR to align Terraform state for $userLabel." -ForegroundColor DarkGray
         } elseif ($hasPRSupport) {
@@ -494,11 +494,11 @@ function Invoke-Remediation {
                 -FilePath "terraform/ca-group/members.auto.tfvars" `
                 -FileContent (Set-MembersInFile $varsContent $newMembers) `
                 -CommitMessage "remediation: align TF state for manual CA addition of $displayName (SC-02)" `
-                -PRTitle "[SC-02] Align Terraform state — manual CA addition for $displayName" `
-                -PRBody "## Terraform Drift — Scenario 2`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user was added to the CA protection group **manually** (outside of Terraform). Security is not impacted but Terraform state is inconsistent.`n`n**Risk Level:** Low`n**Action:** Approve to codify this change in Terraform, or close to investigate and remove the manual addition"
+                -PRTitle "[SC-02] Align Terraform state - manual CA addition for $displayName" `
+                -PRBody "## Terraform Drift - Scenario 2`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user was added to the CA protection group **manually** (outside of Terraform). Security is not impacted but Terraform state is inconsistent.`n`n**Risk Level:** Low`n**Action:** Approve to codify this change in Terraform, or close to investigate and remove the manual addition"
             Write-Host "  [SC-02] PR created: $url" -ForegroundColor Green
         } else {
-            Write-Warning "  [SC-02] No GitHub config — cannot raise PR for drift on $userLabel."
+            Write-Warning "  [SC-02] No GitHub config - cannot raise PR for drift on $userLabel."
         }
     }
 }
@@ -511,7 +511,7 @@ Write-Host "Subscriptions : $($SubscriptionIds -join ', ')" -ForegroundColor Dar
 Write-Host "CA Group      : $CAGroupId"                     -ForegroundColor DarkGray
 Write-Host "TF State      : $TerraformStatePath"            -ForegroundColor DarkGray
 if ($DryRun) {
-    Write-Host "Mode          : DRY RUN — no changes will be made" -ForegroundColor Yellow
+    Write-Host "Mode          : DRY RUN - no changes will be made" -ForegroundColor Yellow
 }
 Write-Host ""
 

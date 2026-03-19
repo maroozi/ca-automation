@@ -4,7 +4,7 @@ variable "tenant_id" {
 }
 
 variable "environment" {
-  description = "Deployment environment — test or prod"
+  description = "Deployment environment - test or prod"
   type        = string
   default     = "test"
 

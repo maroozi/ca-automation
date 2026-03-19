@@ -2,7 +2,7 @@
 # This file is tracked in git and is the source of truth for CA group membership.
 # Remediation PRs raised by the compliance scanner will modify this file.
 #
-# Add user object IDs (not UPNs) — one per line.
+# Add user object IDs (not UPNs) - one per line.
 
 members = [
   "b23ea181-2677-46b5-af0d-84824e562ad2",  # Admin - Allan West (admin-allan.west@lrqagroup.onmicrosoft.com)

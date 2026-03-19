@@ -10,7 +10,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin - Allan West",
       "UPN": "admin-allan.west@lrqagroup.onmicrosoft.com",
       "RolesHeld": "User Access Administrator @ / | Owner @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
@@ -20,7 +20,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Azure Admin",
       "UPN": "admin@lrqagroup.onmicrosoft.com",
       "RolesHeld": "User Access Administrator @ / | Owner @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b | Security Admin @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
@@ -30,7 +30,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "lrqapentestingaccount",
       "UPN": "lrqapentestingaccount@lrqa.com",
       "RolesHeld": "Monitoring Reader @ RG: rg-sbx-agents-uksouth-01"
@@ -40,7 +40,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin-abushayan khan",
       "UPN": "Admin-abushayan.khan@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Owner @ Subscription"
@@ -50,7 +50,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin-Fiona.Laufs",
       "UPN": "Admin-Fiona.Laufs@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Contributor @ Subscription"
@@ -60,7 +60,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Abdulsamad, Mo",
       "UPN": "muhammad.abdulsamad@lrqa.com",
       "RolesHeld": "Contributor @ Resource: kv-dvgapp-001 | Storage Blob Data Contributor @ Resource: concor | Storage Blob Data Contributor @ Resource: fslogix_share | Storage Blob Data Contributor @ Resource: storageacc28062032 | Contributor @ Resource: storageacc28062032"
@@ -70,7 +70,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin - Shrikant Umadi",
       "UPN": "Admin-Shrikant.Umadi@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Key Vault Administrator @ Resource: moulabhsmngdkv04"
@@ -80,7 +80,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin - Muhammad Abdulsamad",
       "UPN": "Admin-Muhammad.Abdulsamad@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Reader @ Resource: storageacc28062032 | User Access Administrator @ Subscription | Key Vault Administrator @ Resource: moulabhsmngdkv04"
@@ -90,7 +90,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Ruocco, Martina",
       "UPN": "martina.ruocco@lrqa.com",
       "RolesHeld": "Storage Queue Data Contributor @ Resource: nova-di-input"
@@ -100,7 +100,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Wei, Moshi",
       "UPN": "moshi.wei@lrqa.com",
       "RolesHeld": "Azure AI User @ Resource: ai-gpt4164974444549"
@@ -110,7 +110,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin-Paul.Cave",
       "UPN": "Admin-Paul.Cave@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Contributor @ RG: rg-logicapps-neu-sbx-001 | Logic App Contributor @ RG: rg-logicapps-neu-sbx-001"
@@ -120,7 +120,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Cam McEwan",
       "UPN": "admin-cam.mcewan@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Contributor @ Subscription"
@@ -130,7 +130,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "admin-Dylan.Karrass",
       "UPN": "admin-Dylan.Karrass@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Contributor @ RG: rg-logicapps-neu-sbx-001"
@@ -140,7 +140,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "admin-moshi.wei",
       "UPN": "admin-moshi.wei@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Azure AI Inference Deployment Operator @ RG: rg-aisandbox-dev-002"
@@ -150,7 +150,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "admin-martina.ruocco",
       "UPN": "admin-martina.ruocco@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Azure AI Inference Deployment Operator @ RG: rg-aisandbox-dev-002 | Owner @ Resource: admin-martinaruocco-3813 | Owner @ Resource: reggieblobstorage | Storage Blob Data Contributor @ Resource: reggieblobstorage | Storage Queue Data Contributor @ Resource: nova-di-input | Azure AI User @ Resource: nova-documentintelligence-dev"
@@ -160,7 +160,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin - Dan Abbatt",
       "UPN": "admin-dan.abbatt@lrqagroup.onmicrosoft.com",
       "RolesHeld": "User Access Administrator @ / | Owner @ Resource: LRQA | DevCenter Project Admin @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
@@ -170,7 +170,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin - Adeel Qayyum",
       "UPN": "Admin-Adeel.Qayyum@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Owner @ Subscription | Azure AI User @ Resource: admin-m8q5br79-eastus2"
@@ -180,7 +180,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Prosser, Ash",
       "UPN": "ashley.prosser@lrqa.com",
       "RolesHeld": "Azure Kubernetes Service RBAC Cluster Admin @ Resource: LRQA | Reader @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
@@ -190,7 +190,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Wilson, Lewis",
       "UPN": "lewis.wilson@lrqa.com",
       "RolesHeld": "Reader @ Resource: okodocumentstorepoc | Storage Blob Data Contributor @ Resource: somedocs"
@@ -200,7 +200,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "admin-Ashley.Prosser",
       "UPN": "admin-ashley.prosser@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Azure AI User @ Resource: ai-gpt4164974444549 | Owner @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
@@ -210,7 +210,7 @@
       "Scenario": "Scenario2",
       "RiskLevel": "Low",
       "Remediation": "RaisePR",
-      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "Description": "User added to CA group manually - not reflected in Terraform state",
       "DisplayName": "Admin - Ross Alexander",
       "UPN": "admin-ross.alexander@lrqagroup.onmicrosoft.com",
       "RolesHeld": "Azure Kubernetes Service RBAC Cluster Admin @ Resource: LRQA | Reader @ Resource: LRQA"

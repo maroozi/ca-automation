@@ -115,7 +115,7 @@ function Remove-UserFromCAGroup {
     Write-Host "  [Setup] Removing test user from CA group..." -ForegroundColor DarkGray
     if (-not $DryRun) {
         try { Remove-AzureADGroupMember -ObjectId $TestCAGroupId -MemberId $TestUserId }
-        catch { Write-Host "  [Info] User was not in CA group — skipping" -ForegroundColor DarkGray }
+        catch { Write-Host "  [Info] User was not in CA group - skipping" -ForegroundColor DarkGray }
     }
 }
 
@@ -138,7 +138,7 @@ function Remove-UserRBACRole {
                 -RoleDefinitionName $TestRoleName `
                 -Scope "/subscriptions/$TestSubscriptionId"
         } catch {
-            Write-Host "  [Info] Role assignment not found — skipping" -ForegroundColor DarkGray
+            Write-Host "  [Info] Role assignment not found - skipping" -ForegroundColor DarkGray
         }
     }
 }
@@ -156,10 +156,10 @@ function Get-UserHasHSRole {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# E2E-01 | Standard provisioning — user gains compliant access
+# E2E-01 | Standard provisioning - user gains compliant access
 # ══════════════════════════════════════════════════════════════════════════════
 function Test-E2E01 {
-    Write-TestHeader "E2E-01" "Standard provisioning — user gains compliant access"
+    Write-TestHeader "E2E-01" "Standard provisioning - user gains compliant access"
     $passed = $true
 
     try {
@@ -177,7 +177,7 @@ function Test-E2E01 {
         $hasRole = Get-UserHasHSRole
         if (-not (Assert-True $hasRole "User has HS RBAC role")) { $passed = $false }
 
-        # Step 3: Run scanner — should be clean
+        # Step 3: Run scanner - should be clean
         $result = Invoke-Scanner
         if (-not (Assert-True ($result.Findings.Count -eq 0) "Scanner reports no findings")) { $passed = $false }
         if (-not (Assert-True ($result.OverallStatus -eq "Compliant" -or $result.OverallStatus -eq "DryRun") "Overall status is Compliant")) { $passed = $false }
@@ -194,10 +194,10 @@ function Test-E2E01 {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# E2E-02 | Scenario 1 — RBAC before CA group, auto-remediated
+# E2E-02 | Scenario 1 - RBAC before CA group, auto-remediated
 # ══════════════════════════════════════════════════════════════════════════════
 function Test-E2E02 {
-    Write-TestHeader "E2E-02" "Scenario 1 — RBAC before CA group, auto-remediated"
+    Write-TestHeader "E2E-02" "Scenario 1 - RBAC before CA group, auto-remediated"
     $passed = $true
 
     try {
@@ -209,7 +209,7 @@ function Test-E2E02 {
         $inCAGroup = Get-IsUserInCAGroup
         if (-not (Assert-True (-not $inCAGroup) "Precondition: user NOT in CA group")) { $passed = $false }
 
-        # Run scanner — should detect Scenario 1
+        # Run scanner - should detect Scenario 1
         $result = Invoke-Scanner
         $finding = $result.Findings | Where-Object { $_.UserId -eq $TestUserId }
         if (-not (Assert-True ($finding -ne $null) "Scanner detects non-compliance")) { $passed = $false }
@@ -232,14 +232,14 @@ function Test-E2E02 {
         Remove-UserRBACRole
     }
 
-    Record-Result "E2E-02" "Scenario 1 — RBAC before CA group" $passed
+    Record-Result "E2E-02" "Scenario 1 - RBAC before CA group" $passed
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# E2E-03 | Scenario 3 — CA removed with active RBAC (HIGH RISK)
+# E2E-03 | Scenario 3 - CA removed with active RBAC (HIGH RISK)
 # ══════════════════════════════════════════════════════════════════════════════
 function Test-E2E03 {
-    Write-TestHeader "E2E-03" "Scenario 3 — CA removed with RBAC active (HIGH RISK)"
+    Write-TestHeader "E2E-03" "Scenario 3 - CA removed with RBAC active (HIGH RISK)"
     $passed = $true
 
     try {
@@ -255,7 +255,7 @@ function Test-E2E03 {
         $hasRole = Get-UserHasHSRole
         if (-not (Assert-True $hasRole "Precondition: user still has HS RBAC role")) { $passed = $false }
 
-        # Run scanner — should detect HIGH RISK Scenario 3
+        # Run scanner - should detect HIGH RISK Scenario 3
         $result = Invoke-Scanner
         $finding = $result.Findings | Where-Object { $_.UserId -eq $TestUserId }
         if (-not (Assert-True ($finding -ne $null) "Scanner detects high-risk condition")) { $passed = $false }
@@ -272,14 +272,14 @@ function Test-E2E03 {
         Remove-UserRBACRole
     }
 
-    Record-Result "E2E-03" "Scenario 3 — CA removed with active RBAC" $passed
+    Record-Result "E2E-03" "Scenario 3 - CA removed with active RBAC" $passed
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# E2E-04 | Scenario 5 — All roles revoked, CA group cleaned up
+# E2E-04 | Scenario 5 - All roles revoked, CA group cleaned up
 # ══════════════════════════════════════════════════════════════════════════════
 function Test-E2E04 {
-    Write-TestHeader "E2E-04" "Scenario 5 — Role revoked, CA group cleaned up"
+    Write-TestHeader "E2E-04" "Scenario 5 - Role revoked, CA group cleaned up"
     $passed = $true
 
     try {
@@ -292,7 +292,7 @@ function Test-E2E04 {
         $hasRole = Get-UserHasHSRole
         if (-not (Assert-True (-not $hasRole) "Precondition: user has no HS RBAC roles")) { $passed = $false }
 
-        # Run scanner — should detect Scenario 5 and raise PR to remove from CA group
+        # Run scanner - should detect Scenario 5 and raise PR to remove from CA group
         $result = Invoke-Scanner
         $finding = $result.Findings | Where-Object { $_.UserId -eq $TestUserId }
         if (-not (Assert-True ($finding -ne $null) "Scanner detects user with no roles")) { $passed = $false }
@@ -309,14 +309,14 @@ function Test-E2E04 {
         Remove-UserRBACRole
     }
 
-    Record-Result "E2E-04" "Scenario 5 — Role revoked, CA group cleaned up" $passed
+    Record-Result "E2E-04" "Scenario 5 - Role revoked, CA group cleaned up" $passed
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# E2E-05 | Full revocation — user removed from everything, clean state
+# E2E-05 | Full revocation - user removed from everything, clean state
 # ══════════════════════════════════════════════════════════════════════════════
 function Test-E2E05 {
-    Write-TestHeader "E2E-05" "Full access revocation — clean final state"
+    Write-TestHeader "E2E-05" "Full access revocation - clean final state"
     $passed = $true
 
     try {
@@ -353,7 +353,7 @@ function Test-E2E05 {
 # Main execution
 # ══════════════════════════════════════════════════════════════════════════════
 Write-Host ""
-Write-Host "CA Group Automation — End-to-End Test Runner" -ForegroundColor White
+Write-Host "CA Group Automation - End-to-End Test Runner" -ForegroundColor White
 Write-Host "Subscription : $TestSubscriptionId" -ForegroundColor DarkGray
 Write-Host "CA Group     : $TestCAGroupId" -ForegroundColor DarkGray
 Write-Host "Test User    : $TestUserId" -ForegroundColor DarkGray

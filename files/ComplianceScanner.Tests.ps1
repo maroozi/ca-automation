@@ -25,7 +25,7 @@ BeforeAll {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SC-01 | Role assigned before CA group — scanner detects and flags
+# SC-01 | Role assigned before CA group - scanner detects and flags
 # ══════════════════════════════════════════════════════════════════════════════
 Describe "SC-01: RBAC assigned without CA group membership" {
 
@@ -54,7 +54,7 @@ Describe "SC-01: RBAC assigned without CA group membership" {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SC-02 | Manual CA group addition — drift from Terraform state
+# SC-02 | Manual CA group addition - drift from Terraform state
 # ══════════════════════════════════════════════════════════════════════════════
 Describe "SC-02: Manual CA group addition not in Terraform state" {
 
@@ -85,7 +85,7 @@ Describe "SC-02: Manual CA group addition not in Terraform state" {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SC-03 | CA group removed but RBAC still active — HIGH RISK
+# SC-03 | CA group removed but RBAC still active - HIGH RISK
 # ══════════════════════════════════════════════════════════════════════════════
 Describe "SC-03: User removed from CA group with active HS RBAC (HIGH RISK)" {
 
@@ -122,7 +122,7 @@ Describe "SC-03: User removed from CA group with active HS RBAC (HIGH RISK)" {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SC-04 | Large-scale drift — investigation mode, NO auto-remediation
+# SC-04 | Large-scale drift - investigation mode, NO auto-remediation
 # ══════════════════════════════════════════════════════════════════════════════
 Describe "SC-04: Large-scale drift triggers investigation mode" {
 
@@ -157,7 +157,7 @@ Describe "SC-04: Large-scale drift triggers investigation mode" {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SC-05 | User loses all HS roles — CA group membership removed
+# SC-05 | User loses all HS roles - CA group membership removed
 # ══════════════════════════════════════════════════════════════════════════════
 Describe "SC-05: User with no HS RBAC roles removed from CA group" {
 
@@ -188,12 +188,12 @@ Describe "SC-05: User with no HS RBAC roles removed from CA group" {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SC-06 | Fully compliant user — no output
+# SC-06 | Fully compliant user - no output
 # ══════════════════════════════════════════════════════════════════════════════
 Describe "SC-06: Compliant user produces no scanner findings" {
 
     BeforeEach {
-        # UserA is in the CA group AND has an HS RBAC role — fully compliant
+        # UserA is in the CA group AND has an HS RBAC role - fully compliant
         Mock Get-CAGroupMembers    { return @($script:UserA.ObjectId) }
         Mock Get-HSRBACAssignments { return @($script:UserA.ObjectId) }
         Mock Get-TerraformCAGroupState { return @($script:UserA.ObjectId) }

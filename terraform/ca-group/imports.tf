@@ -1,6 +1,6 @@
 # ── Import existing CA group and members into Terraform state ─────────────────
 # Run once: terraform plan (will show imports), then terraform apply.
-# Delete this file after successful import — it is not needed ongoing.
+# Delete this file after successful import - it is not needed ongoing.
 #
 # Group ID: f6598023-3e75-4fb1-a6ae-ec59fb6475e9
 # Member import ID format: <group_object_id>/member/<member_object_id>

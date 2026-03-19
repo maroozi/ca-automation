@@ -1,5 +1,5 @@
 # ============================================================
-# CA Group Automation — CI/CD Pipeline
+# CA Group Automation - CI/CD Pipeline
 # Covers: Terraform validate/plan/apply + compliance scanner
 # ============================================================
 
@@ -40,7 +40,7 @@ stages:
   # STAGE 1: Pester unit tests for compliance scanner logic
   # ──────────────────────────────────────────────────────────
   - stage: ScannerUnitTests
-    displayName: "Scanner — Pester Unit Tests"
+    displayName: "Scanner - Pester Unit Tests"
     jobs:
       - job: PesterTests
         displayName: "Run Pester Tests"
@@ -80,10 +80,10 @@ stages:
             condition: always()
 
   # ──────────────────────────────────────────────────────────
-  # STAGE 2: Terraform — CA Group Module
+  # STAGE 2: Terraform - CA Group Module
   # ──────────────────────────────────────────────────────────
   - stage: TerraformCAGroup
-    displayName: "Terraform — CA Group"
+    displayName: "Terraform - CA Group"
     dependsOn: ScannerUnitTests
     condition: succeeded()
     jobs:
@@ -138,7 +138,7 @@ stages:
                 $deletes = ($plan.resource_changes | Where-Object { $_.change.actions -contains "delete" }).Count
                 Write-Host "##[section]Plan Summary: +$adds ~$updates -$deletes"
                 if ($deletes -gt 0) {
-                  Write-Host "##vso[task.logissue type=warning]Plan contains $deletes deletions — review carefully."
+                  Write-Host "##vso[task.logissue type=warning]Plan contains $deletes deletions - review carefully."
                 }
             workingDirectory: $(WORKING_DIR_CA)
 
@@ -193,10 +193,10 @@ stages:
                     environmentServiceNameAzureRM: "lz-terraform-sc"
 
   # ──────────────────────────────────────────────────────────
-  # STAGE 3: Terraform — RBAC Module
+  # STAGE 3: Terraform - RBAC Module
   # ──────────────────────────────────────────────────────────
   - stage: TerraformRBAC
-    displayName: "Terraform — RBAC"
+    displayName: "Terraform - RBAC"
     dependsOn: TerraformCAGroup
     condition: succeeded()
     jobs:
