@@ -457,6 +457,17 @@ function Invoke-Remediation {
                             -PRTitle "[SC-01] Add $displayName to CA group (auto-remediation)" `
                             -PRBody "## Auto-Remediation - Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user had HS RBAC access but was not a member of the CA protection group. The user has been added to the CA group directly. This PR aligns Terraform state.`n`n**Risk Level:** Low`n**Automated action:** User added to CA group`n**Required action:** Approve this PR to align Terraform state"
                         Write-Host "  [SC-01] PR created: $($pr.html_url)" -ForegroundColor Green
+
+                        # Auto-merge — user already added to live group, PR just aligns members.yml
+                        $mergeHeaders = @{
+                            Authorization          = "Bearer $GitHubToken"
+                            Accept                 = "application/vnd.github+json"
+                            "X-GitHub-Api-Version" = "2022-11-28"
+                        }
+                        Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
+                            -Method Put -Headers $mergeHeaders -ContentType "application/json" `
+                            -Body (@{ merge_method = "squash"; commit_title = "[SC-01] Auto-merge: align members.yml for $displayName" } | ConvertTo-Json) | Out-Null
+                        Write-Host "  [SC-01] PR auto-merged — terraform-apply will reconcile state." -ForegroundColor Green
                     }
                 }
             }
