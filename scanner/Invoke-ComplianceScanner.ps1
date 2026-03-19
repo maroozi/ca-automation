@@ -410,6 +410,7 @@ function Invoke-Remediation {
         [string]$CAGroupId,
         [string]$MembersConfigPath,
         [string[]]$CurrentTFMembers,
+        [string[]]$RBACUserIds,
         [string]$GitHubToken,
         [string]$GitHubRepo,
         [string]$GitHubBaseBranch,
@@ -556,6 +557,20 @@ function Invoke-Remediation {
                 -PRTitle "[SC-02] Align Terraform state - manual CA addition for $displayName" `
                 -PRBody "## Terraform Drift - Scenario 2`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user was added to the CA protection group **manually** (outside of Terraform). Security is not impacted but Terraform state is inconsistent.`n`n**Risk Level:** Low`n**Action:** Approve to codify this change in Terraform, or close to investigate and remove the manual addition"
             Write-Host "  [SC-02] PR created: $($pr.html_url)" -ForegroundColor Green
+
+            # Auto-merge if user has HS RBAC — drift is just members.yml being out of sync,
+            # no human decision needed. If they have no RBAC, SC-05 will handle removal.
+            if ($RBACUserIds -contains $userId) {
+                $mergeHeaders = @{
+                    Authorization          = "Bearer $GitHubToken"
+                    Accept                 = "application/vnd.github+json"
+                    "X-GitHub-Api-Version" = "2022-11-28"
+                }
+                Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
+                    -Method Put -Headers $mergeHeaders -ContentType "application/json" `
+                    -Body (@{ merge_method = "squash"; commit_title = "[SC-02] Auto-merge: align members.yml for $displayName" } | ConvertTo-Json) | Out-Null
+                Write-Host "  [SC-02] PR auto-merged — terraform-apply will reconcile state." -ForegroundColor Green
+            }
         } else {
             Write-Warning "  [SC-02] No GitHub config - cannot raise PR for drift on $userLabel."
         }
@@ -640,6 +655,7 @@ if ($result.OverallStatus -ne "Compliant") {
         -CAGroupId $CAGroupId `
         -MembersConfigPath $MembersConfigPath `
         -CurrentTFMembers $tfCAMembers `
+        -RBACUserIds $rbacUsers `
         -GitHubToken $GitHubToken `
         -GitHubRepo $GitHubRepo `
         -GitHubBaseBranch $GitHubBaseBranch `
