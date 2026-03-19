@@ -1,0 +1,219 @@
+{
+  "OverallStatus": "NonCompliant",
+  "Mode": "Normal",
+  "AutoRemediationTriggered": false,
+  "NonCompliantUsers": [],
+  "Findings": [],
+  "TerraformDrift": [
+    {
+      "UserId": "b23ea181-2677-46b5-af0d-84824e562ad2",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin - Allan West",
+      "UPN": "admin-allan.west@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "User Access Administrator @ / | Owner @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
+    },
+    {
+      "UserId": "c4da49b6-4bb6-49e0-b473-4d377811805a",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Azure Admin",
+      "UPN": "admin@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "User Access Administrator @ / | Owner @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b | Security Admin @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
+    },
+    {
+      "UserId": "01f520b1-497b-4c2d-841c-7dac9b8422db",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "lrqapentestingaccount",
+      "UPN": "lrqapentestingaccount@lrqa.com",
+      "RolesHeld": "Monitoring Reader @ RG: rg-sbx-agents-uksouth-01"
+    },
+    {
+      "UserId": "39558af5-60f4-4e31-a8df-86e9d2a85557",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin-abushayan khan",
+      "UPN": "Admin-abushayan.khan@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Owner @ Subscription"
+    },
+    {
+      "UserId": "b8f07a98-0823-4a6c-8e0f-91c72085fb6e",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin-Fiona.Laufs",
+      "UPN": "Admin-Fiona.Laufs@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Contributor @ Subscription"
+    },
+    {
+      "UserId": "4e8176d2-374c-4df0-8bcd-d3b247151598",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Abdulsamad, Mo",
+      "UPN": "muhammad.abdulsamad@lrqa.com",
+      "RolesHeld": "Contributor @ Resource: kv-dvgapp-001 | Storage Blob Data Contributor @ Resource: concor | Storage Blob Data Contributor @ Resource: fslogix_share | Storage Blob Data Contributor @ Resource: storageacc28062032 | Contributor @ Resource: storageacc28062032"
+    },
+    {
+      "UserId": "46980360-f860-4d9f-9fa3-8107754c4061",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin - Shrikant Umadi",
+      "UPN": "Admin-Shrikant.Umadi@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Key Vault Administrator @ Resource: moulabhsmngdkv04"
+    },
+    {
+      "UserId": "ce71f88f-0019-4dd5-aa1a-f2a54a25291f",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin - Muhammad Abdulsamad",
+      "UPN": "Admin-Muhammad.Abdulsamad@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Reader @ Resource: storageacc28062032 | User Access Administrator @ Subscription | Key Vault Administrator @ Resource: moulabhsmngdkv04"
+    },
+    {
+      "UserId": "4786f93f-f693-4558-b049-57e91c54e88f",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Ruocco, Martina",
+      "UPN": "martina.ruocco@lrqa.com",
+      "RolesHeld": "Storage Queue Data Contributor @ Resource: nova-di-input"
+    },
+    {
+      "UserId": "73f61b63-5bed-49db-8b5f-d2f5e5e095ac",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Wei, Moshi",
+      "UPN": "moshi.wei@lrqa.com",
+      "RolesHeld": "Azure AI User @ Resource: ai-gpt4164974444549"
+    },
+    {
+      "UserId": "c9c5811c-5b7f-432e-b8b8-b2c162608d5e",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin-Paul.Cave",
+      "UPN": "Admin-Paul.Cave@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Contributor @ RG: rg-logicapps-neu-sbx-001 | Logic App Contributor @ RG: rg-logicapps-neu-sbx-001"
+    },
+    {
+      "UserId": "bef1d246-da26-4d94-bb44-e0e27b041de9",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Cam McEwan",
+      "UPN": "admin-cam.mcewan@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Contributor @ Subscription"
+    },
+    {
+      "UserId": "81f86a72-e6ff-4a0a-a7bb-a4ef268c1b8c",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "admin-Dylan.Karrass",
+      "UPN": "admin-Dylan.Karrass@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Contributor @ RG: rg-logicapps-neu-sbx-001"
+    },
+    {
+      "UserId": "fd0ab0e2-777c-4569-8552-682d9b63391a",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "admin-moshi.wei",
+      "UPN": "admin-moshi.wei@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Azure AI Inference Deployment Operator @ RG: rg-aisandbox-dev-002"
+    },
+    {
+      "UserId": "e3d061c1-d5cc-4a67-93e2-03f57654b924",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "admin-martina.ruocco",
+      "UPN": "admin-martina.ruocco@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Azure AI Inference Deployment Operator @ RG: rg-aisandbox-dev-002 | Owner @ Resource: admin-martinaruocco-3813 | Owner @ Resource: reggieblobstorage | Storage Blob Data Contributor @ Resource: reggieblobstorage | Storage Queue Data Contributor @ Resource: nova-di-input | Azure AI User @ Resource: nova-documentintelligence-dev"
+    },
+    {
+      "UserId": "24c3d353-0c65-4787-ad27-065d9bb37eb5",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin - Dan Abbatt",
+      "UPN": "admin-dan.abbatt@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "User Access Administrator @ / | Owner @ Resource: LRQA | DevCenter Project Admin @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
+    },
+    {
+      "UserId": "2ca7ca84-a149-44d7-9409-53dd25fc18f9",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin - Adeel Qayyum",
+      "UPN": "Admin-Adeel.Qayyum@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Owner @ Subscription | Azure AI User @ Resource: admin-m8q5br79-eastus2"
+    },
+    {
+      "UserId": "86d723db-6dc3-45f5-ae66-567a5b10e8be",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Prosser, Ash",
+      "UPN": "ashley.prosser@lrqa.com",
+      "RolesHeld": "Azure Kubernetes Service RBAC Cluster Admin @ Resource: LRQA | Reader @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
+    },
+    {
+      "UserId": "39258d66-4d14-4f32-9c46-b9d6bf3866ce",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Wilson, Lewis",
+      "UPN": "lewis.wilson@lrqa.com",
+      "RolesHeld": "Reader @ Resource: okodocumentstorepoc | Storage Blob Data Contributor @ Resource: somedocs"
+    },
+    {
+      "UserId": "ba9af88c-a5d9-4efe-9d6f-d42934b27443",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "admin-Ashley.Prosser",
+      "UPN": "admin-ashley.prosser@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Azure AI User @ Resource: ai-gpt4164974444549 | Owner @ Resource: b51312b3-1a7b-4033-827b-6794ad5e9e4b"
+    },
+    {
+      "UserId": "10f4c55b-08d8-451c-91e2-1bc3ba2b1e28",
+      "Scenario": "Scenario2",
+      "RiskLevel": "Low",
+      "Remediation": "RaisePR",
+      "Description": "User added to CA group manually — not reflected in Terraform state",
+      "DisplayName": "Admin - Ross Alexander",
+      "UPN": "admin-ross.alexander@lrqagroup.onmicrosoft.com",
+      "RolesHeld": "Azure Kubernetes Service RBAC Cluster Admin @ Resource: LRQA | Reader @ Resource: LRQA"
+    }
+  ]
+}

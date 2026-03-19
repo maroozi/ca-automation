@@ -1,0 +1,73 @@
+name: CA Group Compliance Scanner
+
+on:
+  schedule:
+    - cron: '0 6,12,18,0 * * *'  # Runs at 06:00, 12:00, 18:00, 00:00 UTC
+  workflow_dispatch:               # Manual trigger from GitHub UI
+
+permissions:
+  contents: write       # Required to create remediation branches
+  pull-requests: write  # Required to open remediation PRs
+
+jobs:
+  compliance-scan:
+    name: Run Compliance Scanner
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PowerShell modules
+        shell: pwsh
+        run: |
+          Install-Module Az.Accounts          -Force -AllowClobber -Scope CurrentUser
+          Install-Module Az.Resources         -Force -AllowClobber -Scope CurrentUser
+          Install-Module Microsoft.Graph.Authentication -Force -AllowClobber -Scope CurrentUser
+          Install-Module Microsoft.Graph.Groups         -Force -AllowClobber -Scope CurrentUser
+          Install-Module Microsoft.Graph.Users          -Force -AllowClobber -Scope CurrentUser
+
+      - name: Authenticate to Azure
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          $secureSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
+          $credential   = New-Object System.Management.Automation.PSCredential($env:AZURE_CLIENT_ID, $secureSecret)
+          Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $env:AZURE_TENANT_ID | Out-Null
+          Write-Host "Connected to Azure"
+
+      - name: Authenticate to Microsoft Graph
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          $secureSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
+          $credential   = New-Object System.Management.Automation.PSCredential($env:AZURE_CLIENT_ID, $secureSecret)
+          Connect-MgGraph -TenantId $env:AZURE_TENANT_ID -ClientSecretCredential $credential | Out-Null
+          Write-Host "Connected to Microsoft Graph"
+
+      - name: Run compliance scanner
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $subIds = "${{ secrets.HS_SUBSCRIPTION_IDS }}" -split ","
+          .\scanner\Invoke-ComplianceScanner.ps1 `
+            -SubscriptionIds $subIds `
+            -CAGroupId       "${{ secrets.CA_GROUP_ID }}" `
+            -GitHubToken     $env:GH_TOKEN `
+            -GitHubRepo      "${{ github.repository }}" `
+            -OutputPath      "${{ github.workspace }}/scanner-results.json"
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scanner-results-${{ github.run_number }}
+          path: scanner-results.json
+          retention-days: 30

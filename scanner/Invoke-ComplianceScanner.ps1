@@ -165,22 +165,33 @@ function Get-CAGroupLiveMembers {
 }
 
 function Get-TerraformManagedMembers {
-    param([string]$StatePath)
+    param([string]$StatePath, [string]$VarsPath)
 
-    if (-not (Test-Path $StatePath)) {
-        Write-Warning "Terraform state not found at '$StatePath' — treating TF state as empty."
-        return [string[]]@()
+    # Prefer tfstate (authoritative) — fall back to members.auto.tfvars (available in CI)
+    if (Test-Path $StatePath) {
+        $state = Get-Content $StatePath -Raw | ConvertFrom-Json
+        $members = @(
+            $state.resources |
+                Where-Object { $_.type -eq "azuread_group_member" } |
+                ForEach-Object { $_.instances } |
+                ForEach-Object { $_.attributes.member_object_id } |
+                Where-Object { $_ }
+        )
+        Write-Verbose "Terraform state contains $($members.Count) managed member(s)."
+        return [string[]]$members
     }
-    $state = Get-Content $StatePath -Raw | ConvertFrom-Json
-    $members = @(
-        $state.resources |
-            Where-Object { $_.type -eq "azuread_group_member" } |
-            ForEach-Object { $_.instances } |
-            ForEach-Object { $_.attributes.member_object_id } |
-            Where-Object { $_ }
-    )
-    Write-Verbose "Terraform state contains $($members.Count) managed member(s)."
-    return [string[]]$members
+
+    if (Test-Path $VarsPath) {
+        Write-Verbose "Terraform state not found — falling back to $VarsPath"
+        $content = Get-Content $VarsPath -Raw
+        $members = [regex]::Matches($content, '"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"') |
+            ForEach-Object { $_.Groups[1].Value }
+        Write-Verbose "members.auto.tfvars contains $(@($members).Count) managed member(s)."
+        return [string[]]@($members)
+    }
+
+    Write-Warning "Neither tfstate nor members.auto.tfvars found — treating TF state as empty."
+    return [string[]]@()
 }
 
 # ── Core compliance logic ────────────────────────────────────────────────────
@@ -417,20 +428,20 @@ function Invoke-Remediation {
 
             "Scenario3" {
                 Write-Host "  [SC-03] HIGH RISK: $userId removed from CA group with active RBAC — raising PR for review..." -ForegroundColor Red
-                if ($hasPRSupport) {
+                if ($DryRun) {
+                    Write-Host "  [SC-03] [DryRun] Would raise PR to re-add $userId to CA group." -ForegroundColor DarkGray
+                } elseif ($hasPRSupport) {
                     $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
                     $branch     = "remediation/sc03-review-$($userId.Substring(0,8))-$timestamp"
-                    if (-not $DryRun) {
-                        $url = New-GitHubRemediationPR `
-                            -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
-                            -BranchName $branch `
-                            -FilePath "terraform/ca-group/members.auto.tfvars" `
-                            -FileContent (Set-MembersInFile $varsContent $newMembers) `
-                            -CommitMessage "remediation: review SC-03 for $userId" `
-                            -PRTitle "[SC-03] ⚠ HIGH RISK — Review CA group removal for $userId" `
-                            -PRBody "## ⚠ High Risk — Scenario 3`n`nUser \`\`$userId\`\` has been **removed from the CA protection group** but **still retains HS RBAC access**.`n`nThis means the user can access HS Azure resources without Conditional Access enforcement.`n`n### Required Action`n- [ ] Review whether this user's RBAC access is still valid`n- [ ] If access is still valid: approve this PR to re-add to CA group`n- [ ] If access should no longer exist: remove RBAC assignments and close this PR`n`n**Risk Level:** High  `n**Do not approve without reviewing the user's current access.**"
-                        Write-Host "  [SC-03] PR created: $url" -ForegroundColor Green
-                    }
+                    $url = New-GitHubRemediationPR `
+                        -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
+                        -BranchName $branch `
+                        -FilePath "terraform/ca-group/members.auto.tfvars" `
+                        -FileContent (Set-MembersInFile $varsContent $newMembers) `
+                        -CommitMessage "remediation: review SC-03 for $userId" `
+                        -PRTitle "[SC-03] ⚠ HIGH RISK — Review CA group removal for $userId" `
+                        -PRBody "## ⚠ High Risk — Scenario 3`n`nUser \`\`$userId\`\` has been **removed from the CA protection group** but **still retains HS RBAC access**.`n`nThis means the user can access HS Azure resources without Conditional Access enforcement.`n`n### Required Action`n- [ ] Review whether this user's RBAC access is still valid`n- [ ] If access is still valid: approve this PR to re-add to CA group`n- [ ] If access should no longer exist: remove RBAC assignments and close this PR`n`n**Risk Level:** High  `n**Do not approve without reviewing the user's current access.**"
+                    Write-Host "  [SC-03] PR created: $url" -ForegroundColor Green
                 } else {
                     Write-Warning "  [SC-03] No GitHub config — cannot raise PR. Manual intervention required for $userId."
                 }
@@ -438,7 +449,9 @@ function Invoke-Remediation {
 
             "Scenario5" {
                 Write-Host "  [SC-05] $userId has no HS roles — raising PR to remove from CA group..." -ForegroundColor Cyan
-                if ($hasPRSupport) {
+                if ($DryRun) {
+                    Write-Host "  [SC-05] [DryRun] Would raise PR to remove $userId from CA group." -ForegroundColor DarkGray
+                } elseif ($hasPRSupport) {
                     $newMembers = @($CurrentTFMembers) | Where-Object { $_ -ne $userId }
                     $branch     = "remediation/sc05-remove-$($userId.Substring(0,8))-$timestamp"
                     if (-not $DryRun) {
@@ -463,20 +476,20 @@ function Invoke-Remediation {
 
         $userId = $drift.UserId
         Write-Host "  [SC-02] Manual CA group addition for $userId — raising PR to align Terraform state..." -ForegroundColor Yellow
-        if ($hasPRSupport) {
+        if ($DryRun) {
+            Write-Host "  [SC-02] [DryRun] Would raise PR to align Terraform state for $userId." -ForegroundColor DarkGray
+        } elseif ($hasPRSupport) {
             $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
             $branch     = "remediation/sc02-drift-$($userId.Substring(0,8))-$timestamp"
-            if (-not $DryRun) {
-                $url = New-GitHubRemediationPR `
-                    -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
-                    -BranchName $branch `
-                    -FilePath "terraform/ca-group/members.auto.tfvars" `
-                    -FileContent (Set-MembersInFile $varsContent $newMembers) `
-                    -CommitMessage "remediation: align TF state for manual CA addition of $userId (SC-02)" `
-                    -PRTitle "[SC-02] Align Terraform state — manual CA group addition for $userId" `
-                    -PRBody "## Terraform Drift — Scenario 2`n`nUser \`\`$userId\`\` was added to the CA protection group **manually** (outside of Terraform).`n`nSecurity is not impacted, but Terraform state is inconsistent. This PR codifies the manual change.`n`n**Risk Level:** Low  `n**Action:** Approve to align Terraform with current live state, or close to investigate and remove the manual addition"
-                Write-Host "  [SC-02] PR created: $url" -ForegroundColor Green
-            }
+            $url = New-GitHubRemediationPR `
+                -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
+                -BranchName $branch `
+                -FilePath "terraform/ca-group/members.auto.tfvars" `
+                -FileContent (Set-MembersInFile $varsContent $newMembers) `
+                -CommitMessage "remediation: align TF state for manual CA addition of $userId (SC-02)" `
+                -PRTitle "[SC-02] Align Terraform state — manual CA group addition for $userId" `
+                -PRBody "## Terraform Drift — Scenario 2`n`nUser \`\`$userId\`\` was added to the CA protection group **manually** (outside of Terraform).`n`nSecurity is not impacted, but Terraform state is inconsistent. This PR codifies the manual change.`n`n**Risk Level:** Low  `n**Action:** Approve to align Terraform with current live state, or close to investigate and remove the manual addition"
+            Write-Host "  [SC-02] PR created: $url" -ForegroundColor Green
         } else {
             Write-Warning "  [SC-02] No GitHub config — cannot raise PR for drift on $userId."
         }
@@ -499,7 +512,7 @@ Write-Host ""
 $rbacUserMap   = Get-HSRBACUsers             -SubscriptionIds $SubscriptionIds
 $rbacUsers     = [string[]]$rbacUserMap.Keys
 $liveCAMembers = Get-CAGroupLiveMembers      -CAGroupId $CAGroupId
-$tfCAMembers   = Get-TerraformManagedMembers -StatePath $TerraformStatePath
+$tfCAMembers   = Get-TerraformManagedMembers -StatePath $TerraformStatePath -VarsPath $MembersVarsPath
 
 # Run compliance check
 $result = Invoke-ComplianceCheck `
