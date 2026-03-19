@@ -439,37 +439,31 @@ function Invoke-Remediation {
         switch ($finding.Scenario) {
 
             "Scenario1" {
-                Write-Host "  [SC-01] Auto-remediating: adding $userLabel to CA group directly..." -ForegroundColor Yellow
-                if (-not $DryRun) {
-                    New-MgGroupMember -GroupId $CAGroupId -DirectoryObjectId $userId
-                }
-
-                if ($hasPRSupport) {
+                Write-Host "  [SC-01] $userLabel has HS RBAC but is not in CA group — updating members.yml..." -ForegroundColor Yellow
+                if ($hasPRSupport -and -not $DryRun) {
                     $newUpns = [string[]](@($currentUpns) + $upn | Select-Object -Unique)
                     $branch  = "remediation/sc01-add-$($userId.Substring(0,8))-$timestamp"
-                    Write-Host "  [SC-01] Raising PR to align Terraform state..." -ForegroundColor Yellow
-                    if (-not $DryRun) {
-                        $pr = New-GitHubRemediationPR `
-                            -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
-                            -BranchName $branch `
-                            -FilePath "terraform/ca-group/config/members.yml" `
-                            -FileContent (Update-MembersYaml $configContent $newUpns) `
-                            -CommitMessage "remediation: add $displayName to CA group (SC-01)" `
-                            -PRTitle "[SC-01] Add $displayName to CA group (auto-remediation)" `
-                            -PRBody "## Auto-Remediation - Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user had HS RBAC access but was not a member of the CA protection group. The user has been added to the CA group directly. This PR aligns Terraform state.`n`n**Risk Level:** Low`n**Automated action:** User added to CA group`n**Required action:** Approve this PR to align Terraform state"
-                        Write-Host "  [SC-01] PR created: $($pr.html_url)" -ForegroundColor Green
+                    $pr = New-GitHubRemediationPR `
+                        -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
+                        -BranchName $branch `
+                        -FilePath "terraform/ca-group/config/members.yml" `
+                        -FileContent (Update-MembersYaml $configContent $newUpns) `
+                        -CommitMessage "remediation: add $displayName to CA group (SC-01)" `
+                        -PRTitle "[SC-01] Add $displayName to CA group (auto-remediation)" `
+                        -PRBody "## Auto-Remediation - Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user has HS RBAC access but is not in the CA protection group. This PR adds them to members.yml — Terraform will add them to the CA group on apply.`n`n**Risk Level:** Low`n**Automated action:** members.yml updated, terraform-apply will enforce"
+                    Write-Host "  [SC-01] PR created: $($pr.html_url)" -ForegroundColor Green
 
-                        # Auto-merge — user already added to live group, PR just aligns members.yml
-                        $mergeHeaders = @{
-                            Authorization          = "Bearer $GitHubToken"
-                            Accept                 = "application/vnd.github+json"
-                            "X-GitHub-Api-Version" = "2022-11-28"
-                        }
-                        Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
-                            -Method Put -Headers $mergeHeaders -ContentType "application/json" `
-                            -Body (@{ merge_method = "squash"; commit_title = "[SC-01] Auto-merge: align members.yml for $displayName" } | ConvertTo-Json) | Out-Null
-                        Write-Host "  [SC-01] PR auto-merged — terraform-apply will reconcile state." -ForegroundColor Green
+                    $mergeHeaders = @{
+                        Authorization          = "Bearer $GitHubToken"
+                        Accept                 = "application/vnd.github+json"
+                        "X-GitHub-Api-Version" = "2022-11-28"
                     }
+                    Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
+                        -Method Put -Headers $mergeHeaders -ContentType "application/json" `
+                        -Body (@{ merge_method = "squash"; commit_title = "[SC-01] Auto-merge: add $displayName to members.yml" } | ConvertTo-Json) | Out-Null
+                    Write-Host "  [SC-01] PR auto-merged — terraform-apply will add user to CA group." -ForegroundColor Green
+                } elseif ($DryRun) {
+                    Write-Host "  [SC-01] [DryRun] Would add $userLabel to members.yml and auto-merge PR." -ForegroundColor DarkGray
                 }
             }
 
@@ -477,37 +471,31 @@ function Invoke-Remediation {
                 Write-Host "  [SC-03] HIGH RISK: $userLabel removed from CA group with active RBAC - auto-restoring protection..." -ForegroundColor Red
                 if ($DryRun) {
                     Write-Host "  [SC-03] [DryRun] Would immediately re-add $userLabel to CA group and raise audit PR." -ForegroundColor DarkGray
-                } else {
-                    # Immediately restore CA protection - do not wait for PR approval
-                    New-MgGroupMember -GroupId $CAGroupId -DirectoryObjectId $userId
-                    Write-Host "  [SC-03] User re-added to CA group directly." -ForegroundColor Green
+                } elseif ($hasPRSupport) {
+                    # Restore via Terraform — update members.yml and auto-merge so terraform-apply re-adds the user
+                    $newUpns = [string[]](@($currentUpns) + $upn | Select-Object -Unique)
+                    $branch  = "remediation/sc03-restore-$($userId.Substring(0,8))-$timestamp"
+                    $pr = New-GitHubRemediationPR `
+                        -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
+                        -BranchName $branch `
+                        -FilePath "terraform/ca-group/config/members.yml" `
+                        -FileContent (Update-MembersYaml $configContent $newUpns -ForceTimestamp) `
+                        -CommitMessage "remediation: SC-03 restore CA protection for $displayName" `
+                        -PRTitle "[SC-03] ⚠ Restore CA protection for $displayName" `
+                        -PRBody "## SC-03 Auto-Remediation`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`n⚠ **This user was removed from the CA protection group while retaining HS RBAC access.** This PR restores them to members.yml — Terraform will re-add them to the CA group on apply.`n`n### Follow-up Actions`n- [ ] Investigate why the user was removed from the CA group`n- [ ] If the RBAC access itself should be removed, do so via a separate change`n`n**Risk Level:** High"
+                    Write-Host "  [SC-03] PR created: $($pr.html_url)" -ForegroundColor Green
 
-                    if ($hasPRSupport) {
-                        $newUpns = [string[]](@($currentUpns) + $upn | Select-Object -Unique)
-                        $branch  = "remediation/sc03-audit-$($userId.Substring(0,8))-$timestamp"
-                        $pr = New-GitHubRemediationPR `
-                            -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
-                            -BranchName $branch `
-                            -FilePath "terraform/ca-group/config/members.yml" `
-                            -FileContent (Update-MembersYaml $configContent $newUpns -ForceTimestamp) `
-                            -CommitMessage "remediation: SC-03 auto-restore CA protection for $displayName" `
-                            -PRTitle "[SC-03] Audit - CA protection auto-restored for $displayName" `
-                            -PRBody "## SC-03 Auto-Remediation Audit`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`n⚡ **This user was automatically re-added to the CA protection group** because they had active HS RBAC access without CA enforcement. CA protection is restored immediately — this PR is auto-merged to trigger Terraform state reconciliation and serves as an audit trail.`n`n### Follow-up Actions`n- [ ] Investigate why the user was removed from the CA group`n- [ ] If the RBAC access itself should be removed, do so via a separate change`n`n**Risk Level:** High (now mitigated)"
-                        Write-Host "  [SC-03] Audit PR created: $($pr.html_url)" -ForegroundColor Green
-
-                        # Auto-merge — no human approval needed; gap is already closed
-                        $mergeHeaders = @{
-                            Authorization          = "Bearer $GitHubToken"
-                            Accept                 = "application/vnd.github+json"
-                            "X-GitHub-Api-Version" = "2022-11-28"
-                        }
-                        Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
-                            -Method Put -Headers $mergeHeaders -ContentType "application/json" `
-                            -Body (@{ merge_method = "squash"; commit_title = "[SC-03] Auto-merge: restore CA protection for $displayName" } | ConvertTo-Json) | Out-Null
-                        Write-Host "  [SC-03] Audit PR auto-merged — terraform-apply will reconcile state." -ForegroundColor Green
-                    } else {
-                        Write-Warning "  [SC-03] No GitHub config - Terraform state not updated. Run terraform apply manually."
+                    $mergeHeaders = @{
+                        Authorization          = "Bearer $GitHubToken"
+                        Accept                 = "application/vnd.github+json"
+                        "X-GitHub-Api-Version" = "2022-11-28"
                     }
+                    Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
+                        -Method Put -Headers $mergeHeaders -ContentType "application/json" `
+                        -Body (@{ merge_method = "squash"; commit_title = "[SC-03] Auto-merge: restore CA protection for $displayName" } | ConvertTo-Json) | Out-Null
+                    Write-Host "  [SC-03] PR auto-merged — terraform-apply will re-add user to CA group." -ForegroundColor Green
+                } else {
+                    Write-Warning "  [SC-03] No GitHub config - cannot raise PR. Update members.yml manually and run terraform apply."
                 }
             }
 
