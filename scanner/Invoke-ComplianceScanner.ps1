@@ -12,7 +12,7 @@
     Detects and remediates the following scenarios:
       SC-01  User has RBAC but is not in CA group             (auto-remediate)
       SC-02  User added to CA group manually, not in TF state (raise PR)
-      SC-03  User removed from CA group, still has RBAC       (raise PR - HIGH RISK)
+      SC-03  User removed from CA group, still has RBAC       (auto-restore + audit PR)
       SC-04  Bulk drift above threshold                       (investigation mode)
       SC-05  User in CA group with no HS RBAC roles           (raise PR)
       SC-06  User in CA group with RBAC roles                 (compliant)
@@ -442,23 +442,29 @@ function Invoke-Remediation {
             }
 
             "Scenario3" {
-                Write-Host "  [SC-03] HIGH RISK: $userLabel removed from CA group with active RBAC - raising PR for review..." -ForegroundColor Red
+                Write-Host "  [SC-03] HIGH RISK: $userLabel removed from CA group with active RBAC - auto-restoring protection..." -ForegroundColor Red
                 if ($DryRun) {
-                    Write-Host "  [SC-03] [DryRun] Would raise PR to re-add $userLabel to CA group." -ForegroundColor DarkGray
-                } elseif ($hasPRSupport) {
-                    $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
-                    $branch     = "remediation/sc03-review-$($userId.Substring(0,8))-$timestamp"
-                    $url = New-GitHubRemediationPR `
-                        -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
-                        -BranchName $branch `
-                        -FilePath "terraform/ca-group/members.auto.tfvars" `
-                        -FileContent (Set-MembersInFile $varsContent $newMembers -ForceTimestamp) `
-                        -CommitMessage "remediation: review SC-03 for $displayName" `
-                        -PRTitle "[SC-03] ⚠ HIGH RISK - Review CA group removal for $displayName" `
-                        -PRBody "## ⚠ High Risk - Scenario 3`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user has been **removed from the CA protection group** but **still retains HS RBAC access**. This means the user can access HS Azure resources without Conditional Access enforcement.`n`n### Required Action`n- [ ] Review whether this user's RBAC access is still valid`n- [ ] If access is still valid: approve this PR to re-add to CA group`n- [ ] If access should no longer exist: remove RBAC assignments and close this PR`n`n**Risk Level:** High`n**Do not approve without reviewing the user's current access.**"
-                    Write-Host "  [SC-03] PR created: $url" -ForegroundColor Green
+                    Write-Host "  [SC-03] [DryRun] Would immediately re-add $userLabel to CA group and raise audit PR." -ForegroundColor DarkGray
                 } else {
-                    Write-Warning "  [SC-03] No GitHub config - cannot raise PR. Manual intervention required for $userLabel."
+                    # Immediately restore CA protection - do not wait for PR approval
+                    New-MgGroupMember -GroupId $CAGroupId -DirectoryObjectId $userId
+                    Write-Host "  [SC-03] User re-added to CA group directly." -ForegroundColor Green
+
+                    if ($hasPRSupport) {
+                        $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
+                        $branch     = "remediation/sc03-audit-$($userId.Substring(0,8))-$timestamp"
+                        $url = New-GitHubRemediationPR `
+                            -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
+                            -BranchName $branch `
+                            -FilePath "terraform/ca-group/members.auto.tfvars" `
+                            -FileContent (Set-MembersInFile $varsContent $newMembers -ForceTimestamp) `
+                            -CommitMessage "remediation: SC-03 auto-restore CA protection for $displayName" `
+                            -PRTitle "[SC-03] Audit - CA protection auto-restored for $displayName" `
+                            -PRBody "## SC-03 Auto-Remediation Audit`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`n⚡ **This user was automatically re-added to the CA protection group** because they had active HS RBAC access without CA enforcement. CA protection is restored immediately — this PR triggers Terraform to reconcile state and provides an audit trail.`n`n### Follow-up Actions`n- [ ] Investigate why the user was removed from the CA group`n- [ ] If the RBAC access itself should be removed, do so and close this PR`n- [ ] Otherwise approve to confirm the auto-remediation`n`n**Risk Level:** High (now mitigated)"
+                        Write-Host "  [SC-03] Audit PR created: $url" -ForegroundColor Green
+                    } else {
+                        Write-Warning "  [SC-03] No GitHub config - Terraform state not updated. Run terraform apply manually."
+                    }
                 }
             }
 
