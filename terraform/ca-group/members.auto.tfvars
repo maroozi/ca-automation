@@ -1,3 +1,4 @@
+# Last-remediation-trigger: 2026-03-19T15:26:28Z
 # ── CA Group Members ─────────────────────────────────────────────────────────
 # This file is tracked in git and is the source of truth for CA group membership.
 # Remediation PRs raised by the compliance scanner will modify this file.
