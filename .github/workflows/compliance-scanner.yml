@@ -27,28 +27,26 @@ jobs:
           Install-Module Microsoft.Graph.Groups         -Force -AllowClobber -Scope CurrentUser
           Install-Module Microsoft.Graph.Users          -Force -AllowClobber -Scope CurrentUser
 
-      - name: Authenticate to Azure and Microsoft Graph
+      - name: Authenticate and run compliance scanner
         shell: pwsh
         env:
           AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+          GH_TOKEN:            ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Authenticate to Azure
           $secureSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
           $credential   = New-Object System.Management.Automation.PSCredential($env:AZURE_CLIENT_ID, $secureSecret)
-
           Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $env:AZURE_TENANT_ID | Out-Null
           Write-Host "Connected to Azure"
 
+          # Authenticate to Microsoft Graph using the Az session token
           $token = (Get-AzAccessToken -ResourceTypeName MSGraph).Token
           Connect-MgGraph -AccessToken (ConvertTo-SecureString $token -AsPlainText -Force) | Out-Null
           Write-Host "Connected to Microsoft Graph"
 
-      - name: Run compliance scanner
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+          # Run scanner
           $subIds = "${{ secrets.HS_SUBSCRIPTION_IDS }}" -split ","
           .\scanner\Invoke-ComplianceScanner.ps1 `
             -SubscriptionIds $subIds `
