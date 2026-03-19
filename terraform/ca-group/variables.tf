@@ -25,8 +25,3 @@ variable "ca_group_description" {
   default     = "Conditional Access protection group for High Security subscriptions"
 }
 
-variable "members" {
-  description = "Object IDs of users who must be members of the CA group"
-  type        = list(string)
-  default     = []
-}

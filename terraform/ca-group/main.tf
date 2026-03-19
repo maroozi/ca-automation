@@ -2,18 +2,25 @@
 # CA Group - Conditional Access Protection Group
 # ============================================================
 #
-# TEST:  Terraform creates the group.
-# PROD:  Group already exists. Import it before first apply:
+# Members are managed in config/members.yml (UPNs).
+# Terraform resolves UPNs to object IDs via data.azuread_user.
 #
+# PROD: Group already exists. Import it before first apply:
 #   terraform import azuread_group.ca_group <group-object-id>
-#
-#   If the group already has members, import each one:
-#   terraform import \
-#     'azuread_group_member.members["<user-object-id>"]' \
-#     <group-object-id>/<user-object-id>
 #
 # After import, set prevent_destroy = true in the lifecycle block below.
 # ============================================================
+
+locals {
+  config  = yamldecode(file("${path.module}/config/members.yml"))
+  members = toset(local.config.members)
+}
+
+# Resolve each UPN to an Entra ID object
+data "azuread_user" "members" {
+  for_each            = local.members
+  user_principal_name = each.value
+}
 
 resource "azuread_group" "ca_group" {
   display_name     = var.ca_group_name
@@ -28,12 +35,12 @@ resource "azuread_group" "ca_group" {
 }
 
 # ── Group Membership ────────────────────────────────────────────────────────
-# Each member is a separate resource so PRs add/remove individual entries.
-# Remediation automation modifies var.members and raises a PR here.
+# Each member is a separate resource keyed by UPN.
+# Remediation automation modifies config/members.yml and raises a PR.
 
 resource "azuread_group_member" "members" {
-  for_each = toset(var.members)
+  for_each = local.members
 
   group_object_id  = azuread_group.ca_group.object_id
-  member_object_id = each.value
+  member_object_id = data.azuread_user.members[each.value].object_id
 }
