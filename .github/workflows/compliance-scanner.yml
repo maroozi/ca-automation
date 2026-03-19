@@ -41,9 +41,8 @@ jobs:
           Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $env:AZURE_TENANT_ID | Out-Null
           Write-Host "Connected to Azure"
 
-          # Authenticate to Microsoft Graph using the Az session token
-          $token = (Get-AzAccessToken -ResourceTypeName MSGraph).Token
-          Connect-MgGraph -AccessToken (ConvertTo-SecureString $token -AsPlainText -Force) | Out-Null
+          # Authenticate to Microsoft Graph using client credentials directly
+          Connect-MgGraph -ClientId $env:AZURE_CLIENT_ID -TenantId $env:AZURE_TENANT_ID -ClientSecretCredential $credential | Out-Null
           Write-Host "Connected to Microsoft Graph"
 
           # Run scanner
