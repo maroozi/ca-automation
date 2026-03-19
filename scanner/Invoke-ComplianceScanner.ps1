@@ -368,8 +368,19 @@ function Build-MembersBlock {
 }
 
 function Set-MembersInFile {
-    param([string]$Content, [string[]]$Members)
-    return $Content -replace '(?s)members\s*=\s*\[.*?\]', (Build-MembersBlock $Members)
+    param([string]$Content, [string[]]$Members, [switch]$ForceTimestamp)
+
+    $updated = $Content -replace '(?s)members\s*=\s*\[.*?\]', (Build-MembersBlock $Members)
+
+    if ($ForceTimestamp) {
+        # SC-03: file content is unchanged (user already present in tfvars).
+        # Stamp a comment so the PR has a real diff and the path-filter trigger fires on merge.
+        $ts      = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+        $updated = $updated -replace '(?m)^(#\s*Last-remediation-trigger:.*)$', ''
+        $updated = "# Last-remediation-trigger: $ts`n" + $updated.TrimStart()
+    }
+
+    return $updated
 }
 
 # ── Remediation dispatcher ───────────────────────────────────────────────────
@@ -441,7 +452,7 @@ function Invoke-Remediation {
                         -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                         -BranchName $branch `
                         -FilePath "terraform/ca-group/members.auto.tfvars" `
-                        -FileContent (Set-MembersInFile $varsContent $newMembers) `
+                        -FileContent (Set-MembersInFile $varsContent $newMembers -ForceTimestamp) `
                         -CommitMessage "remediation: review SC-03 for $displayName" `
                         -PRTitle "[SC-03] ⚠ HIGH RISK - Review CA group removal for $displayName" `
                         -PRBody "## ⚠ High Risk - Scenario 3`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user has been **removed from the CA protection group** but **still retains HS RBAC access**. This means the user can access HS Azure resources without Conditional Access enforcement.`n`n### Required Action`n- [ ] Review whether this user's RBAC access is still valid`n- [ ] If access is still valid: approve this PR to re-add to CA group`n- [ ] If access should no longer exist: remove RBAC assignments and close this PR`n`n**Risk Level:** High`n**Do not approve without reviewing the user's current access.**"
