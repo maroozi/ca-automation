@@ -42,7 +42,7 @@ jobs:
           Write-Host "Connected to Azure"
 
           # Authenticate to Microsoft Graph using client credentials directly
-          Connect-MgGraph -ClientId $env:AZURE_CLIENT_ID -TenantId $env:AZURE_TENANT_ID -ClientSecretCredential $credential | Out-Null
+          Connect-MgGraph -TenantId $env:AZURE_TENANT_ID -ClientSecretCredential $credential | Out-Null
           Write-Host "Connected to Microsoft Graph"
 
           # Run scanner
