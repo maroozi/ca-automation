@@ -462,6 +462,7 @@ function Invoke-Remediation {
                         -Method Put -Headers $mergeHeaders -ContentType "application/json" `
                         -Body (@{ merge_method = "squash"; commit_title = "[SC-01] Auto-merge: add $displayName to members.yml" } | ConvertTo-Json) | Out-Null
                     Write-Host "  [SC-01] PR auto-merged — terraform-apply will add user to CA group." -ForegroundColor Green
+                    $script:autoMerged = $true
                 } elseif ($DryRun) {
                     Write-Host "  [SC-01] [DryRun] Would add $userLabel to members.yml and auto-merge PR." -ForegroundColor DarkGray
                 }
@@ -494,6 +495,7 @@ function Invoke-Remediation {
                         -Method Put -Headers $mergeHeaders -ContentType "application/json" `
                         -Body (@{ merge_method = "squash"; commit_title = "[SC-03] Auto-merge: restore CA protection for $displayName" } | ConvertTo-Json) | Out-Null
                     Write-Host "  [SC-03] PR auto-merged — terraform-apply will re-add user to CA group." -ForegroundColor Green
+                    $script:autoMerged = $true
                 } else {
                     Write-Warning "  [SC-03] No GitHub config - cannot raise PR. Update members.yml manually and run terraform apply."
                 }
@@ -558,6 +560,7 @@ function Invoke-Remediation {
                     -Method Put -Headers $mergeHeaders -ContentType "application/json" `
                     -Body (@{ merge_method = "squash"; commit_title = "[SC-02] Auto-merge: align members.yml for $displayName" } | ConvertTo-Json) | Out-Null
                 Write-Host "  [SC-02] PR auto-merged — terraform-apply will reconcile state." -ForegroundColor Green
+                $script:autoMerged = $true
             }
         } else {
             Write-Warning "  [SC-02] No GitHub config - cannot raise PR for drift on $userLabel."
@@ -636,6 +639,7 @@ if ($result.TerraformDrift.Count -gt 0) {
 }
 
 # Remediate
+$script:autoMerged = $false
 if ($result.OverallStatus -ne "Compliant") {
     Write-Host "── Remediation ──────────────────────────────────────────────────" -ForegroundColor White
     Invoke-Remediation `
@@ -659,10 +663,10 @@ if ($OutputPath) {
 
 Write-Host ""
 
-# Exit codes: 0 = clean/remediated, 1 = non-compliant no remediation, 2 = investigation required
+# Exit codes: 0 = compliant or auto-remediated, 1 = action required (SC-05 PR needs review), 2 = investigation mode
 if ($result.Mode -eq "Investigation") {
     exit 2
-} elseif ($result.OverallStatus -ne "Compliant" -and -not $result.AutoRemediationTriggered) {
+} elseif ($result.OverallStatus -ne "Compliant" -and -not $result.AutoRemediationTriggered -and -not $script:autoMerged) {
     exit 1
 } else {
     exit 0
