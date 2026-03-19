@@ -1,0 +1,344 @@
+# ============================================================
+# CA Group Automation — CI/CD Pipeline
+# Covers: Terraform validate/plan/apply + compliance scanner
+# ============================================================
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+      - scanner/**
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+      - scanner/**
+
+variables:
+  - group: lz-highsec-terraform-vars  # Contains ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_TENANT_ID, ARM_SUBSCRIPTION_ID
+  - name: TF_VERSION
+    value: "1.7.0"
+  - name: WORKING_DIR_CA
+    value: "terraform/ca-group"
+  - name: WORKING_DIR_RBAC
+    value: "terraform/rbac"
+  - name: SCANNER_DIR
+    value: "scanner"
+  - name: TEST_SUBSCRIPTION_ID
+    value: "$(TEST_SUBSCRIPTION_ID)"  # Sourced from variable group
+
+stages:
+
+  # ──────────────────────────────────────────────────────────
+  # STAGE 1: Pester unit tests for compliance scanner logic
+  # ──────────────────────────────────────────────────────────
+  - stage: ScannerUnitTests
+    displayName: "Scanner — Pester Unit Tests"
+    jobs:
+      - job: PesterTests
+        displayName: "Run Pester Tests"
+        pool:
+          vmImage: "windows-latest"
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Install Pester"
+            inputs:
+              targetType: inline
+              script: |
+                Install-Module -Name Pester -Force -SkipPublisherCheck -MinimumVersion 5.0.0
+                Import-Module Pester
+
+          - task: PowerShell@2
+            displayName: "Run Pester Tests"
+            inputs:
+              targetType: inline
+              script: |
+                $config = New-PesterConfiguration
+                $config.Run.Path = "$(SCANNER_DIR)/tests"
+                $config.TestResult.Enabled = $true
+                $config.TestResult.OutputPath = "$(System.DefaultWorkingDirectory)/pester-results.xml"
+                $config.TestResult.OutputFormat = "NUnitXml"
+                $config.Output.Verbosity = "Detailed"
+                Invoke-Pester -Configuration $config
+              failOnStderr: true
+
+          - task: PublishTestResults@2
+            displayName: "Publish Pester Results"
+            inputs:
+              testResultsFormat: "NUnit"
+              testResultsFiles: "**/pester-results.xml"
+              failTaskOnFailedTests: true
+            condition: always()
+
+  # ──────────────────────────────────────────────────────────
+  # STAGE 2: Terraform — CA Group Module
+  # ──────────────────────────────────────────────────────────
+  - stage: TerraformCAGroup
+    displayName: "Terraform — CA Group"
+    dependsOn: ScannerUnitTests
+    condition: succeeded()
+    jobs:
+      - job: TFValidatePlan
+        displayName: "Validate & Plan"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            displayName: "Install Terraform $(TF_VERSION)"
+            inputs:
+              terraformVersion: $(TF_VERSION)
+
+          - task: TerraformTaskV4@4
+            displayName: "terraform init"
+            inputs:
+              provider: "azurerm"
+              command: "init"
+              workingDirectory: $(WORKING_DIR_CA)
+              backendServiceArm: "lz-terraform-sc"  # ADO service connection
+              backendAzureRmResourceGroupName: "$(TF_BACKEND_RG)"
+              backendAzureRmStorageAccountName: "$(TF_BACKEND_SA)"
+              backendAzureRmContainerName: "tfstate"
+              backendAzureRmKey: "ca-group-test.tfstate"
+
+          - task: TerraformTaskV4@4
+            displayName: "terraform validate"
+            inputs:
+              provider: "azurerm"
+              command: "validate"
+              workingDirectory: $(WORKING_DIR_CA)
+
+          - task: TerraformTaskV4@4
+            displayName: "terraform plan"
+            inputs:
+              provider: "azurerm"
+              command: "plan"
+              workingDirectory: $(WORKING_DIR_CA)
+              commandOptions: "-var-file=test.tfvars -out=tfplan-ca -detailed-exitcode"
+              environmentServiceNameAzureRM: "lz-terraform-sc"
+
+          - task: PowerShell@2
+            displayName: "Parse and post plan summary"
+            inputs:
+              targetType: inline
+              script: |
+                $plan = terraform show -json tfplan-ca | ConvertFrom-Json
+                $adds    = ($plan.resource_changes | Where-Object { $_.change.actions -contains "create" }).Count
+                $updates = ($plan.resource_changes | Where-Object { $_.change.actions -contains "update" }).Count
+                $deletes = ($plan.resource_changes | Where-Object { $_.change.actions -contains "delete" }).Count
+                Write-Host "##[section]Plan Summary: +$adds ~$updates -$deletes"
+                if ($deletes -gt 0) {
+                  Write-Host "##vso[task.logissue type=warning]Plan contains $deletes deletions — review carefully."
+                }
+            workingDirectory: $(WORKING_DIR_CA)
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish plan artifact"
+            inputs:
+              targetPath: "$(WORKING_DIR_CA)/tfplan-ca"
+              artifact: "tfplan-ca"
+
+      # Apply only runs when merging to main, requires approval gate
+      - deployment: TFApply
+        displayName: "Apply (main only)"
+        dependsOn: TFValidatePlan
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+        environment: "lz-highsec-ca-group"  # Environment with approval gate configured
+        pool:
+          vmImage: "ubuntu-latest"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: TerraformInstaller@1
+                  inputs:
+                    terraformVersion: $(TF_VERSION)
+
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifact: "tfplan-ca"
+                    path: "$(WORKING_DIR_CA)"
+
+                - task: TerraformTaskV4@4
+                  displayName: "terraform init"
+                  inputs:
+                    provider: "azurerm"
+                    command: "init"
+                    workingDirectory: $(WORKING_DIR_CA)
+                    backendServiceArm: "lz-terraform-sc"
+                    backendAzureRmResourceGroupName: "$(TF_BACKEND_RG)"
+                    backendAzureRmStorageAccountName: "$(TF_BACKEND_SA)"
+                    backendAzureRmContainerName: "tfstate"
+                    backendAzureRmKey: "ca-group-test.tfstate"
+
+                - task: TerraformTaskV4@4
+                  displayName: "terraform apply"
+                  inputs:
+                    provider: "azurerm"
+                    command: "apply"
+                    workingDirectory: $(WORKING_DIR_CA)
+                    commandOptions: "tfplan-ca"
+                    environmentServiceNameAzureRM: "lz-terraform-sc"
+
+  # ──────────────────────────────────────────────────────────
+  # STAGE 3: Terraform — RBAC Module
+  # ──────────────────────────────────────────────────────────
+  - stage: TerraformRBAC
+    displayName: "Terraform — RBAC"
+    dependsOn: TerraformCAGroup
+    condition: succeeded()
+    jobs:
+      - job: TFValidatePlanRBAC
+        displayName: "Validate & Plan"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: $(TF_VERSION)
+
+          - task: TerraformTaskV4@4
+            displayName: "terraform init"
+            inputs:
+              provider: "azurerm"
+              command: "init"
+              workingDirectory: $(WORKING_DIR_RBAC)
+              backendServiceArm: "lz-terraform-sc"
+              backendAzureRmResourceGroupName: "$(TF_BACKEND_RG)"
+              backendAzureRmStorageAccountName: "$(TF_BACKEND_SA)"
+              backendAzureRmContainerName: "tfstate"
+              backendAzureRmKey: "rbac-test.tfstate"
+
+          - task: TerraformTaskV4@4
+            displayName: "terraform validate"
+            inputs:
+              provider: "azurerm"
+              command: "validate"
+              workingDirectory: $(WORKING_DIR_RBAC)
+
+          - task: TerraformTaskV4@4
+            displayName: "terraform plan"
+            inputs:
+              provider: "azurerm"
+              command: "plan"
+              workingDirectory: $(WORKING_DIR_RBAC)
+              commandOptions: "-var-file=test.tfvars -out=tfplan-rbac -detailed-exitcode"
+              environmentServiceNameAzureRM: "lz-terraform-sc"
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: "$(WORKING_DIR_RBAC)/tfplan-rbac"
+              artifact: "tfplan-rbac"
+
+      - deployment: TFApplyRBAC
+        displayName: "Apply (main only)"
+        dependsOn: TFValidatePlanRBAC
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+        environment: "lz-highsec-rbac"
+        pool:
+          vmImage: "ubuntu-latest"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - task: TerraformInstaller@1
+                  inputs:
+                    terraformVersion: $(TF_VERSION)
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifact: "tfplan-rbac"
+                    path: "$(WORKING_DIR_RBAC)"
+                - task: TerraformTaskV4@4
+                  displayName: "terraform init"
+                  inputs:
+                    provider: "azurerm"
+                    command: "init"
+                    workingDirectory: $(WORKING_DIR_RBAC)
+                    backendServiceArm: "lz-terraform-sc"
+                    backendAzureRmResourceGroupName: "$(TF_BACKEND_RG)"
+                    backendAzureRmStorageAccountName: "$(TF_BACKEND_SA)"
+                    backendAzureRmContainerName: "tfstate"
+                    backendAzureRmKey: "rbac-test.tfstate"
+                - task: TerraformTaskV4@4
+                  displayName: "terraform apply"
+                  inputs:
+                    provider: "azurerm"
+                    command: "apply"
+                    workingDirectory: $(WORKING_DIR_RBAC)
+                    commandOptions: "tfplan-rbac"
+                    environmentServiceNameAzureRM: "lz-terraform-sc"
+
+  # ──────────────────────────────────────────────────────────
+  # STAGE 4: End-to-End compliance validation
+  # Only runs on main after both Terraform stages complete
+  # ──────────────────────────────────────────────────────────
+  - stage: E2EValidation
+    displayName: "End-to-End Compliance Validation"
+    dependsOn:
+      - TerraformCAGroup
+      - TerraformRBAC
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: RunScanner
+        displayName: "Run Compliance Scanner"
+        pool:
+          vmImage: "windows-latest"
+        steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Install Az modules"
+            inputs:
+              targetType: inline
+              script: |
+                Install-Module -Name Az.Accounts -Force -AllowClobber
+                Install-Module -Name Az.Resources -Force -AllowClobber
+                Install-Module -Name AzureAD -Force -AllowClobber
+
+          - task: AzurePowerShell@5
+            displayName: "Run compliance scanner"
+            inputs:
+              azureSubscription: "lz-terraform-sc"
+              ScriptType: FilePath
+              ScriptPath: "$(SCANNER_DIR)/Invoke-ComplianceScanner.ps1"
+              ScriptArguments: >
+                -SubscriptionId $(TEST_SUBSCRIPTION_ID)
+                -CAGroupId $(TEST_CA_GROUP_ID)
+                -DryRun $true
+                -OutputPath "$(System.DefaultWorkingDirectory)/scanner-results.json"
+              azurePowerShellVersion: LatestVersion
+
+          - task: PowerShell@2
+            displayName: "Assert scanner results"
+            inputs:
+              targetType: inline
+              script: |
+                $results = Get-Content "$(System.DefaultWorkingDirectory)/scanner-results.json" | ConvertFrom-Json
+                if ($results.NonCompliantUsers.Count -gt 0) {
+                  Write-Host "##vso[task.logissue type=error]Scanner found $($results.NonCompliantUsers.Count) non-compliant users:"
+                  $results.NonCompliantUsers | ForEach-Object { Write-Host "  - $_" }
+                  exit 1
+                }
+                Write-Host "##[section]All users compliant. Scanner passed."
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish scanner results"
+            inputs:
+              targetPath: "$(System.DefaultWorkingDirectory)/scanner-results.json"
+              artifact: "scanner-results"
+            condition: always()

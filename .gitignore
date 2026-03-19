@@ -1,0 +1,14 @@
+# Terraform state and local files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# tfvars contain environment-specific values (tenant IDs etc) — not tracked
+terraform.tfvars
+# members.auto.tfvars IS tracked — it's the source of truth for CA group membership
+!members.auto.tfvars
+
+# Scanner output
+scanner-results.json
+pester-results.xml
