@@ -354,7 +354,7 @@ function New-GitHubRemediationPR {
             base  = $BaseBranch
         } | ConvertTo-Json)
 
-    return $pr.html_url
+    return $pr   # caller can use .html_url and .number
 }
 
 function Build-MembersBlock {
@@ -428,7 +428,7 @@ function Invoke-Remediation {
                     $branch     = "remediation/sc01-add-$($userId.Substring(0,8))-$timestamp"
                     Write-Host "  [SC-01] Raising PR to align Terraform state..." -ForegroundColor Yellow
                     if (-not $DryRun) {
-                        $url = New-GitHubRemediationPR `
+                        $pr = New-GitHubRemediationPR `
                             -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                             -BranchName $branch `
                             -FilePath "terraform/ca-group/members.auto.tfvars" `
@@ -436,7 +436,7 @@ function Invoke-Remediation {
                             -CommitMessage "remediation: add $displayName to CA group (SC-01)" `
                             -PRTitle "[SC-01] Add $displayName to CA group (auto-remediation)" `
                             -PRBody "## Auto-Remediation - Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user had HS RBAC access but was not a member of the CA protection group. The user has been added to the CA group directly. This PR aligns Terraform state.`n`n**Risk Level:** Low`n**Automated action:** User added to CA group`n**Required action:** Approve this PR to align Terraform state"
-                        Write-Host "  [SC-01] PR created: $url" -ForegroundColor Green
+                        Write-Host "  [SC-01] PR created: $($pr.html_url)" -ForegroundColor Green
                     }
                 }
             }
@@ -453,15 +453,26 @@ function Invoke-Remediation {
                     if ($hasPRSupport) {
                         $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
                         $branch     = "remediation/sc03-audit-$($userId.Substring(0,8))-$timestamp"
-                        $url = New-GitHubRemediationPR `
+                        $pr = New-GitHubRemediationPR `
                             -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                             -BranchName $branch `
                             -FilePath "terraform/ca-group/members.auto.tfvars" `
                             -FileContent (Set-MembersInFile $varsContent $newMembers -ForceTimestamp) `
                             -CommitMessage "remediation: SC-03 auto-restore CA protection for $displayName" `
                             -PRTitle "[SC-03] Audit - CA protection auto-restored for $displayName" `
-                            -PRBody "## SC-03 Auto-Remediation Audit`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`n⚡ **This user was automatically re-added to the CA protection group** because they had active HS RBAC access without CA enforcement. CA protection is restored immediately — this PR triggers Terraform to reconcile state and provides an audit trail.`n`n### Follow-up Actions`n- [ ] Investigate why the user was removed from the CA group`n- [ ] If the RBAC access itself should be removed, do so and close this PR`n- [ ] Otherwise approve to confirm the auto-remediation`n`n**Risk Level:** High (now mitigated)"
-                        Write-Host "  [SC-03] Audit PR created: $url" -ForegroundColor Green
+                            -PRBody "## SC-03 Auto-Remediation Audit`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`n⚡ **This user was automatically re-added to the CA protection group** because they had active HS RBAC access without CA enforcement. CA protection is restored immediately — this PR is auto-merged to trigger Terraform state reconciliation and serves as an audit trail.`n`n### Follow-up Actions`n- [ ] Investigate why the user was removed from the CA group`n- [ ] If the RBAC access itself should be removed, do so via a separate change`n`n**Risk Level:** High (now mitigated)"
+                        Write-Host "  [SC-03] Audit PR created: $($pr.html_url)" -ForegroundColor Green
+
+                        # Auto-merge — no human approval needed; gap is already closed
+                        $mergeHeaders = @{
+                            Authorization          = "Bearer $GitHubToken"
+                            Accept                 = "application/vnd.github+json"
+                            "X-GitHub-Api-Version" = "2022-11-28"
+                        }
+                        Invoke-RestMethod "https://api.github.com/repos/$GitHubRepo/pulls/$($pr.number)/merge" `
+                            -Method Put -Headers $mergeHeaders -ContentType "application/json" `
+                            -Body (@{ merge_method = "squash"; commit_title = "[SC-03] Auto-merge: restore CA protection for $displayName" } | ConvertTo-Json) | Out-Null
+                        Write-Host "  [SC-03] Audit PR auto-merged — terraform-apply will reconcile state." -ForegroundColor Green
                     } else {
                         Write-Warning "  [SC-03] No GitHub config - Terraform state not updated. Run terraform apply manually."
                     }
@@ -475,7 +486,7 @@ function Invoke-Remediation {
                 } elseif ($hasPRSupport) {
                     $newMembers = @($CurrentTFMembers) | Where-Object { $_ -ne $userId }
                     $branch     = "remediation/sc05-remove-$($userId.Substring(0,8))-$timestamp"
-                    $url = New-GitHubRemediationPR `
+                    $pr = New-GitHubRemediationPR `
                         -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                         -BranchName $branch `
                         -FilePath "terraform/ca-group/members.auto.tfvars" `
@@ -483,7 +494,7 @@ function Invoke-Remediation {
                         -CommitMessage "remediation: remove $displayName from CA group (SC-05)" `
                         -PRTitle "[SC-05] Remove $displayName from CA group (no active roles)" `
                         -PRBody "## Least Privilege Cleanup - Scenario 5`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n---`n`nThis user is a member of the CA protection group but holds **no HS RBAC roles**. CA group membership is no longer required under least privilege principles.`n`n**Risk Level:** Very Low`n**Action:** Approve to remove user from CA group"
-                    Write-Host "  [SC-05] PR created: $url" -ForegroundColor Green
+                    Write-Host "  [SC-05] PR created: $($pr.html_url)" -ForegroundColor Green
                 }
             }
         }
@@ -505,7 +516,7 @@ function Invoke-Remediation {
         } elseif ($hasPRSupport) {
             $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
             $branch     = "remediation/sc02-drift-$($userId.Substring(0,8))-$timestamp"
-            $url = New-GitHubRemediationPR `
+            $pr = New-GitHubRemediationPR `
                 -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                 -BranchName $branch `
                 -FilePath "terraform/ca-group/members.auto.tfvars" `
@@ -513,7 +524,7 @@ function Invoke-Remediation {
                 -CommitMessage "remediation: align TF state for manual CA addition of $displayName (SC-02)" `
                 -PRTitle "[SC-02] Align Terraform state - manual CA addition for $displayName" `
                 -PRBody "## Terraform Drift - Scenario 2`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user was added to the CA protection group **manually** (outside of Terraform). Security is not impacted but Terraform state is inconsistent.`n`n**Risk Level:** Low`n**Action:** Approve to codify this change in Terraform, or close to investigate and remove the manual addition"
-            Write-Host "  [SC-02] PR created: $url" -ForegroundColor Green
+            Write-Host "  [SC-02] PR created: $($pr.html_url)" -ForegroundColor Green
         } else {
             Write-Warning "  [SC-02] No GitHub config - cannot raise PR for drift on $userLabel."
         }
