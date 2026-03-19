@@ -27,18 +27,19 @@ jobs:
           Install-Module Microsoft.Graph.Groups         -Force -AllowClobber -Scope CurrentUser
           Install-Module Microsoft.Graph.Users          -Force -AllowClobber -Scope CurrentUser
 
-      - name: Authenticate to Azure
-        uses: azure/login@v2
-        with:
-          client-id:     ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:     ${{ secrets.AZURE_TENANT_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          enable-AzPSSession: true
-
-      - name: Authenticate to Microsoft Graph
+      - name: Authenticate to Azure and Microsoft Graph
         shell: pwsh
+        env:
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          # Reuse the Az session token — no need to pass credentials again
+          $secureSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
+          $credential   = New-Object System.Management.Automation.PSCredential($env:AZURE_CLIENT_ID, $secureSecret)
+
+          Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $env:AZURE_TENANT_ID | Out-Null
+          Write-Host "Connected to Azure"
+
           $token = (Get-AzAccessToken -ResourceTypeName MSGraph).Token
           Connect-MgGraph -AccessToken (ConvertTo-SecureString $token -AsPlainText -Force) | Out-Null
           Write-Host "Connected to Microsoft Graph"
