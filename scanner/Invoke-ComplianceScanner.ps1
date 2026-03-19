@@ -3,6 +3,12 @@
     Compliance scanner for CA Group automation.
     Validates alignment between Azure RBAC assignments and CA group membership.
 
+.AUTHOR
+    Mo Abdulsamad
+
+.VERSION
+    1.0.0
+
 .DESCRIPTION
     Compares three data sources:
       1. Live Azure RBAC assignments across HS subscriptions
