@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - terraform/ca-group/members.auto.tfvars  # Only triggers when membership changes
+  workflow_dispatch:  # Manual trigger for testing / re-runs
 
 permissions:
   contents: read
