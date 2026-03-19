@@ -33,7 +33,7 @@ jobs:
           AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
-          GH_TOKEN:            ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN:            ${{ secrets.GH_PAT }}
         run: |
           # Authenticate to Azure
           $secureSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
