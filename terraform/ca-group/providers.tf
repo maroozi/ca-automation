@@ -8,9 +8,10 @@ terraform {
     }
   }
 
-  # Local state for testing.
-  # In prod, remove this block — backend is configured in the ADO bootstrap.
-  backend "local" {}
+  # Backend config values are passed at init time via -backend-config flags.
+  # Locally: use the backend.hcl file (gitignored).
+  # CI: passed as GitHub secrets.
+  backend "azurerm" {}
 }
 
 provider "azuread" {

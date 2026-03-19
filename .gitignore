@@ -3,6 +3,7 @@
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+backend.hcl
 
 # tfvars contain environment-specific values (tenant IDs etc) — not tracked
 terraform.tfvars
