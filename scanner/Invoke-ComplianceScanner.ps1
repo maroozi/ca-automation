@@ -74,7 +74,7 @@ param(
     [Parameter(Mandatory)][string[]]$SubscriptionIds,
     [Parameter(Mandatory)][string]$CAGroupId,
     [string]$TerraformStatePath = "$PSScriptRoot/../terraform/ca-group/terraform.tfstate",
-    [string]$MembersVarsPath    = "$PSScriptRoot/../terraform/ca-group/members.auto.tfvars",
+    [string]$MembersConfigPath  = "$PSScriptRoot/../terraform/ca-group/config/members.yml",
     [int]$BulkDriftThreshold    = 5,
     [switch]$DryRun,
     [string]$GitHubToken,
@@ -171,9 +171,9 @@ function Get-CAGroupLiveMembers {
 }
 
 function Get-TerraformManagedMembers {
-    param([string]$StatePath, [string]$VarsPath)
+    param([string]$StatePath, [string]$ConfigPath)
 
-    # Prefer tfstate (authoritative) - fall back to members.auto.tfvars (available in CI)
+    # Prefer tfstate (authoritative) - fall back to members.yml (available in CI)
     if (Test-Path $StatePath) {
         $state = Get-Content $StatePath -Raw | ConvertFrom-Json
         $members = @(
@@ -187,16 +187,28 @@ function Get-TerraformManagedMembers {
         return [string[]]$members
     }
 
-    if (Test-Path $VarsPath) {
-        Write-Verbose "Terraform state not found - falling back to $VarsPath"
-        $content = Get-Content $VarsPath -Raw
-        $members = [regex]::Matches($content, '"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"') |
-            ForEach-Object { $_.Groups[1].Value }
-        Write-Verbose "members.auto.tfvars contains $(@($members).Count) managed member(s)."
-        return [string[]]@($members)
+    if (Test-Path $ConfigPath) {
+        Write-Verbose "Terraform state not found - falling back to $ConfigPath"
+        $content    = Get-Content $ConfigPath -Raw
+        $upnMatches = [regex]::Matches($content, '(?m)^\s*-\s+(\S+@\S+)\s*$')
+        $upns       = @($upnMatches | ForEach-Object { $_.Groups[1].Value.Trim() })
+        $objectIds  = [System.Collections.Generic.List[string]]::new()
+
+        foreach ($upn in $upns) {
+            try {
+                $user = Get-MgUser -Filter "userPrincipalName eq '$upn'" -Property Id -ErrorAction Stop
+                if ($user) { $objectIds.Add($user.Id) }
+                else { Write-Warning "UPN not found in Entra ID: $upn" }
+            } catch {
+                Write-Warning "Failed to resolve UPN $upn`: $_"
+            }
+        }
+
+        Write-Verbose "members.yml resolved $($objectIds.Count) member(s)."
+        return [string[]]$objectIds.ToArray()
     }
 
-    Write-Warning "Neither tfstate nor members.auto.tfvars found - treating TF state as empty."
+    Write-Warning "Neither tfstate nor members.yml found - treating TF state as empty."
     return [string[]]@()
 }
 
@@ -363,27 +375,28 @@ function New-GitHubRemediationPR {
     return $pr   # caller can use .html_url and .number
 }
 
-function Build-MembersBlock {
-    param([string[]]$Members)
-
-    if ($Members.Count -eq 0) {
-        return "members = []"
-    }
-    $lines = $Members | ForEach-Object { "  `"$_`"," }
-    return "members = [`n$($lines -join "`n")`n]"
+function Get-UpnsFromConfig {
+    param([string]$Content)
+    $matches_ = [regex]::Matches($Content, '(?m)^\s*-\s+(\S+@\S+)\s*$')
+    return @($matches_ | ForEach-Object { $_.Groups[1].Value.Trim() })
 }
 
-function Set-MembersInFile {
-    param([string]$Content, [string[]]$Members, [switch]$ForceTimestamp)
+function Build-MembersYaml {
+    param([string[]]$Upns)
 
-    $updated = $Content -replace '(?s)members\s*=\s*\[.*?\]', (Build-MembersBlock $Members)
+    if ($Upns.Count -eq 0) { return "members: []" }
+    $lines = $Upns | ForEach-Object { "  - $_" }
+    return "members:`n$($lines -join "`n")"
+}
+
+function Update-MembersYaml {
+    param([string]$Content, [string[]]$Upns, [switch]$ForceTimestamp)
+
+    $updated = $Content -replace '(?s)members:.*', (Build-MembersYaml $Upns)
 
     if ($ForceTimestamp) {
-        # SC-03: file content is unchanged (user already present in tfvars).
-        # Stamp a comment so the PR has a real diff and the path-filter trigger fires on merge.
         $ts      = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-        $updated = $updated -replace '(?m)^(#\s*Last-remediation-trigger:.*)$', ''
-        $updated = "# Last-remediation-trigger: $ts`n" + $updated.TrimStart()
+        $updated = $updated -replace '(last_remediation_trigger:\s*).*', "`$1`"$ts`""
     }
 
     return $updated
@@ -395,7 +408,7 @@ function Invoke-Remediation {
     param(
         [PSObject]$CheckResult,
         [string]$CAGroupId,
-        [string]$MembersVarsPath,
+        [string]$MembersConfigPath,
         [string[]]$CurrentTFMembers,
         [string]$GitHubToken,
         [string]$GitHubRepo,
@@ -410,7 +423,8 @@ function Invoke-Remediation {
     }
 
     $timestamp      = Get-Date -Format "yyyyMMdd-HHmmss"
-    $varsContent    = Get-Content $MembersVarsPath -Raw
+    $configContent  = Get-Content $MembersConfigPath -Raw
+    $currentUpns    = Get-UpnsFromConfig $configContent
     $hasPRSupport   = $GitHubToken -and $GitHubRepo
 
     # ── Findings ────────────────────────────────────────────────────────────
@@ -430,15 +444,15 @@ function Invoke-Remediation {
                 }
 
                 if ($hasPRSupport) {
-                    $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
-                    $branch     = "remediation/sc01-add-$($userId.Substring(0,8))-$timestamp"
+                    $newUpns = [string[]](@($currentUpns) + $upn | Select-Object -Unique)
+                    $branch  = "remediation/sc01-add-$($userId.Substring(0,8))-$timestamp"
                     Write-Host "  [SC-01] Raising PR to align Terraform state..." -ForegroundColor Yellow
                     if (-not $DryRun) {
                         $pr = New-GitHubRemediationPR `
                             -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                             -BranchName $branch `
-                            -FilePath "terraform/ca-group/members.auto.tfvars" `
-                            -FileContent (Set-MembersInFile $varsContent $newMembers) `
+                            -FilePath "terraform/ca-group/config/members.yml" `
+                            -FileContent (Update-MembersYaml $configContent $newUpns) `
                             -CommitMessage "remediation: add $displayName to CA group (SC-01)" `
                             -PRTitle "[SC-01] Add $displayName to CA group (auto-remediation)" `
                             -PRBody "## Auto-Remediation - Scenario 1`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`nThis user had HS RBAC access but was not a member of the CA protection group. The user has been added to the CA group directly. This PR aligns Terraform state.`n`n**Risk Level:** Low`n**Automated action:** User added to CA group`n**Required action:** Approve this PR to align Terraform state"
@@ -457,13 +471,13 @@ function Invoke-Remediation {
                     Write-Host "  [SC-03] User re-added to CA group directly." -ForegroundColor Green
 
                     if ($hasPRSupport) {
-                        $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
-                        $branch     = "remediation/sc03-audit-$($userId.Substring(0,8))-$timestamp"
+                        $newUpns = [string[]](@($currentUpns) + $upn | Select-Object -Unique)
+                        $branch  = "remediation/sc03-audit-$($userId.Substring(0,8))-$timestamp"
                         $pr = New-GitHubRemediationPR `
                             -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                             -BranchName $branch `
-                            -FilePath "terraform/ca-group/members.auto.tfvars" `
-                            -FileContent (Set-MembersInFile $varsContent $newMembers -ForceTimestamp) `
+                            -FilePath "terraform/ca-group/config/members.yml" `
+                            -FileContent (Update-MembersYaml $configContent $newUpns -ForceTimestamp) `
                             -CommitMessage "remediation: SC-03 auto-restore CA protection for $displayName" `
                             -PRTitle "[SC-03] Audit - CA protection auto-restored for $displayName" `
                             -PRBody "## SC-03 Auto-Remediation Audit`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Role Assignments`n$roles`n`n---`n`n⚡ **This user was automatically re-added to the CA protection group** because they had active HS RBAC access without CA enforcement. CA protection is restored immediately — this PR is auto-merged to trigger Terraform state reconciliation and serves as an audit trail.`n`n### Follow-up Actions`n- [ ] Investigate why the user was removed from the CA group`n- [ ] If the RBAC access itself should be removed, do so via a separate change`n`n**Risk Level:** High (now mitigated)"
@@ -490,13 +504,13 @@ function Invoke-Remediation {
                 if ($DryRun) {
                     Write-Host "  [SC-05] [DryRun] Would raise PR to remove $userLabel from CA group." -ForegroundColor DarkGray
                 } elseif ($hasPRSupport) {
-                    $newMembers = @($CurrentTFMembers) | Where-Object { $_ -ne $userId }
-                    $branch     = "remediation/sc05-remove-$($userId.Substring(0,8))-$timestamp"
+                    $newUpns = [string[]]($currentUpns | Where-Object { $_ -ne $upn })
+                    $branch  = "remediation/sc05-remove-$($userId.Substring(0,8))-$timestamp"
                     $pr = New-GitHubRemediationPR `
                         -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                         -BranchName $branch `
-                        -FilePath "terraform/ca-group/members.auto.tfvars" `
-                        -FileContent (Set-MembersInFile $varsContent $newMembers) `
+                        -FilePath "terraform/ca-group/config/members.yml" `
+                        -FileContent (Update-MembersYaml $configContent $newUpns) `
                         -CommitMessage "remediation: remove $displayName from CA group (SC-05)" `
                         -PRTitle "[SC-05] Remove $displayName from CA group (no active roles)" `
                         -PRBody "## Least Privilege Cleanup - Scenario 5`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n---`n`nThis user is a member of the CA protection group but holds **no HS RBAC roles**. CA group membership is no longer required under least privilege principles.`n`n**Risk Level:** Very Low`n**Action:** Approve to remove user from CA group"
@@ -520,13 +534,13 @@ function Invoke-Remediation {
         if ($DryRun) {
             Write-Host "  [SC-02] [DryRun] Would raise PR to align Terraform state for $userLabel." -ForegroundColor DarkGray
         } elseif ($hasPRSupport) {
-            $newMembers = @($CurrentTFMembers) + $userId | Select-Object -Unique
-            $branch     = "remediation/sc02-drift-$($userId.Substring(0,8))-$timestamp"
+            $newUpns = [string[]](@($currentUpns) + $upn | Select-Object -Unique)
+            $branch  = "remediation/sc02-drift-$($userId.Substring(0,8))-$timestamp"
             $pr = New-GitHubRemediationPR `
                 -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
                 -BranchName $branch `
-                -FilePath "terraform/ca-group/members.auto.tfvars" `
-                -FileContent (Set-MembersInFile $varsContent $newMembers) `
+                -FilePath "terraform/ca-group/config/members.yml" `
+                -FileContent (Update-MembersYaml $configContent $newUpns) `
                 -CommitMessage "remediation: align TF state for manual CA addition of $displayName (SC-02)" `
                 -PRTitle "[SC-02] Align Terraform state - manual CA addition for $displayName" `
                 -PRBody "## Terraform Drift - Scenario 2`n`n**User:** $displayName`n**UPN:** $upn`n**Object ID:** $userId`n`n### Current Role Assignments`n$roles`n`n---`n`nThis user was added to the CA protection group **manually** (outside of Terraform). Security is not impacted but Terraform state is inconsistent.`n`n**Risk Level:** Low`n**Action:** Approve to codify this change in Terraform, or close to investigate and remove the manual addition"
@@ -544,6 +558,7 @@ Write-Host "CA Group Compliance Scanner" -ForegroundColor White
 Write-Host "Subscriptions : $($SubscriptionIds -join ', ')" -ForegroundColor DarkGray
 Write-Host "CA Group      : $CAGroupId"                     -ForegroundColor DarkGray
 Write-Host "TF State      : $TerraformStatePath"            -ForegroundColor DarkGray
+Write-Host "Members Config: $MembersConfigPath"             -ForegroundColor DarkGray
 if ($DryRun) {
     Write-Host "Mode          : DRY RUN - no changes will be made" -ForegroundColor Yellow
 }
@@ -553,7 +568,7 @@ Write-Host ""
 $rbacUserMap   = Get-HSRBACUsers             -SubscriptionIds $SubscriptionIds
 $rbacUsers     = [string[]]$rbacUserMap.Keys
 $liveCAMembers = Get-CAGroupLiveMembers      -CAGroupId $CAGroupId
-$tfCAMembers   = Get-TerraformManagedMembers -StatePath $TerraformStatePath -VarsPath $MembersVarsPath
+$tfCAMembers   = Get-TerraformManagedMembers -StatePath $TerraformStatePath -ConfigPath $MembersConfigPath
 
 # Run compliance check
 $result = Invoke-ComplianceCheck `
@@ -612,7 +627,7 @@ if ($result.OverallStatus -ne "Compliant") {
     Invoke-Remediation `
         -CheckResult $result `
         -CAGroupId $CAGroupId `
-        -MembersVarsPath $MembersVarsPath `
+        -MembersConfigPath $MembersConfigPath `
         -CurrentTFMembers $tfCAMembers `
         -GitHubToken $GitHubToken `
         -GitHubRepo $GitHubRepo `

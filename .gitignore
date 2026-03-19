@@ -7,8 +7,9 @@ backend.hcl
 
 # tfvars contain environment-specific values (tenant IDs etc) - not tracked
 terraform.tfvars
-# members.auto.tfvars IS tracked - it's the source of truth for CA group membership
-!members.auto.tfvars
+
+# members.auto.tfvars is generated from terraform/ca-group/config/members.yml - do not track
+members.auto.tfvars
 
 # Scanner output
 scanner-results.json

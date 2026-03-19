@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - terraform/ca-group/members.auto.tfvars  # Only triggers when membership changes
+      - terraform/ca-group/config/members.yml  # triggers when membership config changes
   workflow_dispatch:  # Manual trigger for testing / re-runs
 
 permissions:
@@ -14,11 +14,30 @@ permissions:
 jobs:
   terraform-apply:
     name: Apply CA Group Membership
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install PowerShell modules
+        shell: pwsh
+        run: |
+          Install-Module Microsoft.Graph.Authentication -Force -AllowClobber -Scope CurrentUser
+          Install-Module Microsoft.Graph.Users          -Force -AllowClobber -Scope CurrentUser
+
+      - name: Resolve UPNs to object IDs
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          $secureSecret = ConvertTo-SecureString $env:AZURE_CLIENT_SECRET -AsPlainText -Force
+          $credential   = New-Object System.Management.Automation.PSCredential($env:AZURE_CLIENT_ID, $secureSecret)
+          Connect-MgGraph -TenantId $env:AZURE_TENANT_ID -ClientSecretCredential $credential | Out-Null
+          Write-Host "Connected to Microsoft Graph"
+          .\terraform\ca-group\config\Resolve-Members.ps1
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
@@ -26,6 +45,7 @@ jobs:
           terraform_version: "1.7.0"
 
       - name: Terraform Init
+        shell: bash
         env:
           ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
           ARM_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -40,13 +60,14 @@ jobs:
         working-directory: terraform/ca-group
 
       - name: Terraform Apply
+        shell: bash
         env:
           ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
           ARM_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
           ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_tenant_id:          ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_ca_group_name:      ${{ vars.TF_CA_GROUP_NAME }}
+          TF_VAR_tenant_id:            ${{ secrets.AZURE_TENANT_ID }}
+          TF_VAR_ca_group_name:        ${{ vars.TF_CA_GROUP_NAME }}
           TF_VAR_ca_group_description: ${{ vars.TF_CA_GROUP_DESCRIPTION }}
         run: terraform apply -auto-approve
         working-directory: terraform/ca-group

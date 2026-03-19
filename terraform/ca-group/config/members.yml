@@ -1,0 +1,31 @@
+# ── CA Group Members ──────────────────────────────────────────────────────────
+# Source of truth for CA group membership.
+# Add/remove users by UPN. Object IDs are resolved automatically during CI.
+# Remediation PRs raised by the compliance scanner will modify this file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+metadata:
+  last_remediation_trigger: ""  # updated automatically by SC-03 auto-remediation
+
+members:
+  - admin-allan.west@lrqagroup.onmicrosoft.com
+  - admin@lrqagroup.onmicrosoft.com
+  - lrqapentestingaccount@lrqa.com
+  - Admin-abushayan.khan@lrqagroup.onmicrosoft.com
+  - Admin-Fiona.Laufs@lrqagroup.onmicrosoft.com
+  - muhammad.abdulsamad@lrqa.com
+  - Admin-Shrikant.Umadi@lrqagroup.onmicrosoft.com
+  - Admin-Muhammad.Abdulsamad@lrqagroup.onmicrosoft.com
+  - martina.ruocco@lrqa.com
+  - moshi.wei@lrqa.com
+  - Admin-Paul.Cave@lrqagroup.onmicrosoft.com
+  - admin-cam.mcewan@lrqagroup.onmicrosoft.com
+  - admin-Dylan.Karrass@lrqagroup.onmicrosoft.com
+  - admin-moshi.wei@lrqagroup.onmicrosoft.com
+  - admin-martina.ruocco@lrqagroup.onmicrosoft.com
+  - admin-dan.abbatt@lrqagroup.onmicrosoft.com
+  - Admin-Adeel.Qayyum@lrqagroup.onmicrosoft.com
+  - ashley.prosser@lrqa.com
+  - lewis.wilson@lrqa.com
+  - admin-ashley.prosser@lrqagroup.onmicrosoft.com
+  - admin-ross.alexander@lrqagroup.onmicrosoft.com
