@@ -63,33 +63,40 @@ jobs:
             "## CA Group Compliance Scanner`n`n❌ Scanner did not produce results." | Out-File $env:GITHUB_STEP_SUMMARY
             return
           }
-          $r = Get-Content $resultsPath | ConvertFrom-Json
+          $r    = Get-Content $resultsPath | ConvertFrom-Json
           $icon = if ($r.OverallStatus -eq "Compliant") { "✅" } else { "❌" }
 
-          $summary = @"
-## $icon CA Group Compliance Scanner
+          $lines = [System.Collections.Generic.List[string]]::new()
+          $lines.Add("## $icon CA Group Compliance Scanner")
+          $lines.Add("")
+          $lines.Add("**Status:** $($r.OverallStatus)  ")
+          $lines.Add("**Mode:** $($r.Mode)  ")
+          $lines.Add("**Findings:** $($r.Findings.Count)  ")
+          $lines.Add("**TF Drift:** $($r.TerraformDrift.Count)  ")
+          $lines.Add("")
 
-| | |
-|---|---|
-| **Status** | $($r.OverallStatus) |
-| **Mode** | $($r.Mode) |
-| **Findings** | $($r.Findings.Count) |
-| **TF Drift** | $($r.TerraformDrift.Count) |
-| **Run** | #${{ github.run_number }} |
-"@
           if ($r.Findings.Count -gt 0) {
-            $summary += "`n`n### Findings`n`n| User | Scenario | Risk | Roles | Remediation |`n|---|---|---|---|---|`n"
+            $lines.Add("### Findings")
+            $lines.Add("")
+            $lines.Add("| User | Scenario | Risk | Roles | Remediation |")
+            $lines.Add("|---|---|---|---|---|")
             foreach ($f in $r.Findings) {
-              $summary += "| $($f.DisplayName) | $($f.Scenario) | $($f.RiskLevel) | $($f.RolesHeld) | $($f.Remediation) |`n"
+              $lines.Add("| $($f.DisplayName) | $($f.Scenario) | $($f.RiskLevel) | $($f.RolesHeld) | $($f.Remediation) |")
             }
+            $lines.Add("")
           }
+
           if ($r.TerraformDrift.Count -gt 0) {
-            $summary += "`n`n### Terraform Drift`n`n| User | Scenario | Roles | Remediation |`n|---|---|---|---|`n"
+            $lines.Add("### Terraform Drift")
+            $lines.Add("")
+            $lines.Add("| User | Scenario | Roles | Remediation |")
+            $lines.Add("|---|---|---|---|")
             foreach ($d in $r.TerraformDrift) {
-              $summary += "| $($d.DisplayName) | $($d.Scenario) | $($d.RolesHeld) | $($d.Remediation) |`n"
+              $lines.Add("| $($d.DisplayName) | $($d.Scenario) | $($d.RolesHeld) | $($d.Remediation) |")
             }
           }
-          $summary | Out-File $env:GITHUB_STEP_SUMMARY
+
+          $lines -join "`n" | Out-File $env:GITHUB_STEP_SUMMARY
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
