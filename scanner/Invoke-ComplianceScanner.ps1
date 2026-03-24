@@ -419,7 +419,37 @@ function Invoke-Remediation {
 
     if ($CheckResult.Mode -eq "Investigation") {
         Write-Host ""
-        Write-Host "  [!] Investigation mode - manual review required. No automated remediation." -ForegroundColor Magenta
+        Write-Host "  [SC-04] Investigation mode - bulk drift detected. Raising investigation PR..." -ForegroundColor Magenta
+
+        $hasPRSupport = $GitHubToken -and $GitHubRepo
+        if ($hasPRSupport -and -not $DryRun) {
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $totalItems = @($CheckResult.Findings) + @($CheckResult.TerraformDrift)
+
+            # Build summary table for the PR body
+            $tableRows = $totalItems | ForEach-Object {
+                $dn  = if ($_.DisplayName) { $_.DisplayName } else { $_.UserId }
+                $upn = if ($_.UPN) { $_.UPN } else { "N/A" }
+                "| $dn | $upn | $($_.Scenario) | $($_.RiskLevel) | $($_.RolesHeld) |"
+            }
+            $table = "| User | UPN | Scenario | Risk | Roles |`n|---|---|---|---|---|`n$($tableRows -join "`n")"
+
+            $branch = "investigation/sc04-bulk-drift-$timestamp"
+            $configContent = Get-Content $MembersConfigPath -Raw
+            $pr = New-GitHubRemediationPR `
+                -Token $GitHubToken -Repo $GitHubRepo -BaseBranch $GitHubBaseBranch `
+                -BranchName $branch `
+                -FilePath "terraform/ca-group/config/members.yml" `
+                -FileContent (Update-MembersYaml $configContent (Get-UpnsFromConfig $configContent) -ForceTimestamp) `
+                -CommitMessage "investigation: SC-04 bulk drift detected ($($totalItems.Count) items)" `
+                -PRTitle "[SC-04] Investigation required - bulk drift ($($totalItems.Count) items)" `
+                -PRBody "## SC-04 Bulk Drift Investigation`n`n**Drift threshold exceeded:** $($totalItems.Count) items detected (threshold: $($CheckResult.Findings.Count + $CheckResult.TerraformDrift.Count))`n`n### Affected Users`n`n$table`n`n---`n`n**Do not merge this PR until the root cause is understood.** Possible causes:`n- Manual changes outside of process`n- Bulk onboarding/offboarding`n- Automation malfunction`n- Terraform misconfiguration`n`n### Required Actions`n- [ ] Identify the root cause of the drift`n- [ ] Validate each user's access is correct`n- [ ] Remediate individually or close this PR and resolve manually"
+            Write-Host "  [SC-04] Investigation PR created: $($pr.html_url)" -ForegroundColor Magenta
+        } elseif ($DryRun) {
+            Write-Host "  [SC-04] [DryRun] Would raise investigation PR for bulk drift." -ForegroundColor DarkGray
+        } else {
+            Write-Warning "  [SC-04] No GitHub config - cannot raise investigation PR."
+        }
         return
     }
 
