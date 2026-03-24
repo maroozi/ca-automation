@@ -1,5 +1,7 @@
 # Phase 2: Automating Compliance Check and Policy Enforcement
 
+Automate the detection and remediation of compliance drift between Azure RBAC assignments and Conditional Access group membership across High Security subscriptions. The system uses Terraform as the single source of truth for CA group membership, with a scheduled compliance scanner that identifies mismatches and raises pull requests to reconcile state. Remediation is risk-based: low-risk drift is resolved automatically while high-risk or bulk changes require human review.
+
 ---
 
 ## Automated CA Group Membership Detection
